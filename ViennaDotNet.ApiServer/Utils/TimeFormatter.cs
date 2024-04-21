@@ -10,12 +10,20 @@ namespace ViennaDotNet.ApiServer.Utils
         public static string FormatTime(long time)
         {
             DateTime dateTime = DateTimeOffset.FromUnixTimeMilliseconds(time).UtcDateTime;
+            return FormatTime(dateTime);
+        }
+        public static string FormatTime(DateTime dateTime)
+        {
             return dateTime.ToString(JSON_DATE_FORMAT, CultureInfo.InvariantCulture);
         }
 
         public static string FormatDuration(long duration)
         {
             TimeSpan timeSpan = TimeSpan.FromMilliseconds(duration);
+            return FormatDuration(timeSpan);
+        }
+        public static string FormatDuration(TimeSpan timeSpan)
+        {
             return string.Format(JSON_DURATION_FORMAT, (int)timeSpan.TotalHours, timeSpan.Minutes, timeSpan.Seconds);
         }
 

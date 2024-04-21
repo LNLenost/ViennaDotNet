@@ -5,6 +5,8 @@ using System;
 using Uma.Uuid;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
+using ViennaDotNet.EventBus.Client;
+using ViennaDotNet.ApiServer.Utils;
 
 namespace ViennaDotNet.ApiServer
 {
@@ -12,6 +14,9 @@ namespace ViennaDotNet.ApiServer
     {
         internal static EarthDB DB;
         internal static Catalog Catalog;
+
+        internal static EventBusClient eventBus;
+        internal static TappablesManager tappablesManager;
 
         public static void Main(string[] args)
         {
@@ -36,9 +41,35 @@ namespace ViennaDotNet.ApiServer
 
             Log.Logger = log;
 
-            DB = EarthDB.Open("mydb.db");
-
             Catalog = new Catalog();
+
+            Log.Information("Connecting to database");
+            try
+            {
+                DB = EarthDB.Open("mydb.db");
+            }
+            catch (EarthDB.DatabaseException ex)
+            {
+                Log.Fatal("Could not connect to database", ex);
+                Environment.Exit(1);
+                return;
+            }
+            Log.Information("Connected to database");
+
+            Log.Information("Connecting to event bus");
+            try
+            {
+                eventBus = EventBusClient.create("localhost:5532"/*eventBusConnectionString*/); // tappablesgenerator is the server
+            }
+            catch (EventBusClientException ex)
+            {
+                Log.Fatal("Could not connect to event bus", ex);
+                Environment.Exit(1);
+                return;
+            }
+            Log.Information("Connected to event bus");
+
+            tappablesManager = new TappablesManager(eventBus);
 
             CreateHostBuilder(args).Build().Run();
 

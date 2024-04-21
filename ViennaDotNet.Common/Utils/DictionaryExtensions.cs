@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -50,6 +51,18 @@ namespace ViennaDotNet.Common.Utils
                     return newValue;
                 }
             }
+        }
+
+        public static void RemoveIf<TKey, TValue>(this IDictionary<TKey, TValue> dic, Predicate<KeyValuePair<TKey, TValue>> predicate)
+        {
+            List<TKey> toRemove = new List<TKey>();
+
+            foreach (var item in dic)
+                if (predicate(item))
+                    toRemove.Add(item.Key);
+
+            for (int i = 0; i < toRemove.Count; i++)
+                dic.Remove(toRemove[i]);
         }
     }
 }

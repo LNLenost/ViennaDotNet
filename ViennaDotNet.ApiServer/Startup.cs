@@ -44,6 +44,12 @@ namespace ViennaDotNet.ApiServer
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.Use(async (context, next) =>
+            {
+                context.Items.Add("RequestStartedOn", DateTime.UtcNow);
+                await next();
+            });
+
             app.UseSerilogRequestLogging(options =>
             {
                 // Customize the message template

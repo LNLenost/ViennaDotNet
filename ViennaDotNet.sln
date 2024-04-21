@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ViennaDotNet.DB", "ViennaDo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ViennaDotNet.Common", "ViennaDotNet.Common\ViennaDotNet.Common.csproj", "{06EE9F84-9B80-44FA-A4FC-D37919466F53}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ViennaDotNet.EventBus", "ViennaDotNet.EventBus\ViennaDotNet.EventBus.csproj", "{F2DEC19C-36DE-4271-B881-8B2422ECE3BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{06EE9F84-9B80-44FA-A4FC-D37919466F53}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{06EE9F84-9B80-44FA-A4FC-D37919466F53}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{06EE9F84-9B80-44FA-A4FC-D37919466F53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2DEC19C-36DE-4271-B881-8B2422ECE3BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2DEC19C-36DE-4271-B881-8B2422ECE3BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2DEC19C-36DE-4271-B881-8B2422ECE3BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2DEC19C-36DE-4271-B881-8B2422ECE3BA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

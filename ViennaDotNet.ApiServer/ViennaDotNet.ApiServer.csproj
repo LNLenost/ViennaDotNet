@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ViennaDotNet.Common\ViennaDotNet.Common.csproj" />
     <ProjectReference Include="..\ViennaDotNet.DB\ViennaDotNet.DB.csproj" />
+    <ProjectReference Include="..\ViennaDotNet.EventBus\ViennaDotNet.EventBus.csproj" />
   </ItemGroup>
 
 </Project>

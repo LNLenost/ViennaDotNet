@@ -11,7 +11,6 @@ using ViennaDotNet.ApiServer.Types.Inventory;
 using ViennaDotNet.ApiServer.Utils;
 using System.Linq;
 using Newtonsoft.Json;
-using static ViennaDotNet.ApiServer.Types.Inventory.NonStackableInventoryItem;
 
 namespace ViennaDotNet.ApiServer.Controllers
 {
