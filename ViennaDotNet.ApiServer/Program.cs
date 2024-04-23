@@ -7,6 +7,8 @@ using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.EventBus.Client;
 using ViennaDotNet.ApiServer.Utils;
+using CliUtils;
+using CliUtils.Exceptions;
 
 namespace ViennaDotNet.ApiServer
 {
@@ -41,12 +43,68 @@ namespace ViennaDotNet.ApiServer
 
             Log.Logger = log;
 
+            Options options = new Options();
+            options.addOption(Option.builder()
+                .Option("port")
+                .HasArg()
+                .ArgName("port")
+                .Type(typeof(ushort))
+                .Desc("Port to listen on, defaults to 8080")
+                .Build());
+            options.addOption(Option.builder()
+                .Option("db")
+                .HasArg()
+                .ArgName("db")
+                .Desc("Database path, defaults to ./earth.db")
+                .Build());
+            options.addOption(Option.builder()
+                .Option("eventbus")
+                .HasArg()
+                .ArgName("eventbus")
+                .Desc("Event bus address, defaults to localhost:5532")
+                .Build());
+            options.addOption(Option.builder()
+                .Option("objectstore")
+                .HasArg()
+                .ArgName("objectstore")
+                .Desc("Object storage address, defaults to localhost:5396")
+                .Build());
+            options.addOption(Option.builder()
+                .Option("previewGenerator")
+                .HasArg()
+                .ArgName("command")
+                //.Required()
+                .Desc("Command to run the buildplate preview generator")
+                .Build());
+
+            CommandLine commandLine;
+            int httpPort;
+            string dbConnectionString;
+            string eventBusConnectionString;
+            string objectStoreConnectionString;
+            string buildplatePreviewGeneratorCommand;
+            try
+            {
+                commandLine = new DefaultParser().parse(options, args);
+                httpPort = commandLine.hasOption("port") ? commandLine.getParsedOptionValue<int>("port") : 8080;
+                dbConnectionString = commandLine.hasOption("db") ? commandLine.getOptionValue("db")! : "./earth.db";
+                eventBusConnectionString = commandLine.hasOption("eventbus") ? commandLine.getOptionValue("eventbus")! : "localhost:5532";
+                objectStoreConnectionString = commandLine.hasOption("objectstore") ? commandLine.getOptionValue("objectstore")! : "localhost:5396";
+                buildplatePreviewGeneratorCommand = commandLine.getOptionValue("previewGenerator")!;
+            }
+            catch (ParseException exception)
+            {
+                Log.Fatal(exception.ToString());
+                Environment.Exit(1);
+                return;
+            }
+
             Catalog = new Catalog();
 
             Log.Information("Connecting to database");
             try
             {
-                DB = EarthDB.Open("mydb.db");
+                DB = EarthDB.Open(dbConnectionString);
             }
             catch (EarthDB.DatabaseException ex)
             {
@@ -59,7 +117,7 @@ namespace ViennaDotNet.ApiServer
             Log.Information("Connecting to event bus");
             try
             {
-                eventBus = EventBusClient.create("localhost:5532"/*eventBusConnectionString*/);
+                eventBus = EventBusClient.create(eventBusConnectionString);
             }
             catch (EventBusClientException ex)
             {
@@ -71,17 +129,18 @@ namespace ViennaDotNet.ApiServer
 
             tappablesManager = new TappablesManager(eventBus);
 
-            CreateHostBuilder(args).Build().Run();
+            CreateHostBuilder(args, httpPort).Build().Run();
 
             Log.Information("Server started!");
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
+        public static IHostBuilder CreateHostBuilder(string[] args, int httpPort) =>
             Host.CreateDefaultBuilder(args)
                 .UseSerilog()
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                    webBuilder.UseUrls($"http://*:{httpPort}/");
                 });
     }
 }

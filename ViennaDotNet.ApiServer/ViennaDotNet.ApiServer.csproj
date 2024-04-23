@@ -24,4 +24,10 @@
     <ProjectReference Include="..\ViennaDotNet.EventBus.Client\ViennaDotNet.EventBus.Client.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="CliUtils">
+      <HintPath>..\CliUtils.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
