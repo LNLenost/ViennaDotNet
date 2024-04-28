@@ -36,7 +36,7 @@ namespace ViennaDotNet.ApiServer.Utils
         {
             Log.Information($"Requesting buildplate instance for player {playerId} buildplate {buildplateId}");
 
-            string? instanceId = requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, buildplateId, false, night))).Task.Result;
+            string? instanceId = await requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, buildplateId, false, night))).Task;
             if (instanceId == null)
             {
                 Log.Error("Buildplate start request was rejected/ignored");
@@ -49,12 +49,10 @@ namespace ViennaDotNet.ApiServer.Utils
                 if (instances.ContainsKey(instanceId))
                     completableFuture.SetResult(true);
                 else
-                {
                     lock (pendingInstances)
                     {
                         pendingInstances[instanceId] = completableFuture;
                     }
-                }
             }
 
             if (!(await completableFuture.Task))

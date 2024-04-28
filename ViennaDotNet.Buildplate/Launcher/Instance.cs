@@ -297,7 +297,7 @@ namespace ViennaDotNet.Buildplate.Launcher
                         PlayerConnectedRequest? playerConnectedRequest = readJson<PlayerConnectedRequest>(request.data);
                         if (playerConnectedRequest != null)
                         {
-                            if (playerConnectedRequest.uuid == playerId || true)    // TODO: probably remove this eventually and put in API server
+                            if (playerConnectedRequest.uuid == playerId /*|| true*/)    // TODO: probably remove this eventually and put in API server
                             {
                                 PlayerConnectedResponse? playerConnectedResponse = sendEventBusRequest<PlayerConnectedResponse>("playerConnected", playerConnectedRequest, true).Result;
                                 if (playerConnectedResponse != null)
@@ -669,8 +669,8 @@ namespace ViennaDotNet.Buildplate.Launcher
 
         private void cleanupBaseDir()
         {
-            Log.Information("Cleaning up runtime directory NOT");
-            return;
+            Log.Information("Cleaning up runtime directory");
+
             try
             {
                 Files.WalkFileTree(baseDir.FullName, new FileVisitor(
@@ -747,12 +747,13 @@ namespace ViennaDotNet.Buildplate.Launcher
                     EnableRaisingEvents = true // needed for Process.Exited
                 };
 
-                StreamWriter? writer = new StreamWriter($"log_{instanceId}-server");
-                serverProcess.OutputDataReceived += (sender, e) => Console.WriteLine("S " + e.Data);//writer?.WriteLine(e.Data);
+                StreamWriter? writer = new StreamWriter($"log_{instanceId}-server") { AutoFlush = true };
+                serverProcess.OutputDataReceived += (sender, e) => writer?.WriteLine(e.Data);
                 serverProcess.ErrorDataReceived += (sender, e) => writer?.WriteLine(e.Data);
 
                 serverProcess.Exited += (sender, e) =>
                 {
+                    Log.Information("SERVER LOG CLOSED");
                     writer?.Close();
                     writer = null;
                 };
@@ -827,18 +828,13 @@ namespace ViennaDotNet.Buildplate.Launcher
                     StartInfo = startInfo,
                     EnableRaisingEvents = true
                 };
-                StreamWriter? writer = new StreamWriter($"log_{instanceId}-server_bridge");
-                int c = 0;
-                process.OutputDataReceived += (sender, e) =>
-                {
-                    c++;
-                    if (c > 10000)
-                        Console.WriteLine("B " + e.Data);
-                };//writer?.WriteLine(e.Data);
+                StreamWriter? writer = new StreamWriter($"log_{instanceId}-server_bridge") { AutoFlush = true };
+                process.OutputDataReceived += (sender, e) => writer?.WriteLine(e.Data);
                 process.ErrorDataReceived += (sender, e) => writer?.WriteLine(e.Data);
 
                 process.Exited += (sender, e) =>
                 {
+                    Log.Information("BRIDGE LOG CLOSED");
                     writer?.Close();
                     writer = null;
 

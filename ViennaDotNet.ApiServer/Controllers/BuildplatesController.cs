@@ -108,12 +108,12 @@ namespace ViennaDotNet.ApiServer.Controllers
                 return BadRequest();
 
             string? instanceId = await buildplateInstancesManager.startBuildplateInstance(playerId, buildplateId, buildplate.night);
-            Log.Debug("Null instance :(");
+
             if (instanceId is null)
                 return BadRequest();
 
             BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
-            Log.Debug("Null instanceInfo :(");
+
             if (instanceInfo is null)
                 return BadRequest();
 

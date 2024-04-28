@@ -48,7 +48,8 @@ namespace ViennaDotNet.ApiServer.Authentication
             if (id is null)
                 return AuthenticateResult.Fail("Invalid Authorization Header");
 
-            var claims = new[] { new Claim(ClaimTypes.NameIdentifier, id), };
+            // should be lower probably, so it is
+            var claims = new[] { new Claim(ClaimTypes.NameIdentifier, id.ToLowerInvariant()), };
 
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
