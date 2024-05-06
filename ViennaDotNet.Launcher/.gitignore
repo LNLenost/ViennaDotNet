@@ -1,0 +1,4 @@
+bin/
+obj/
+
+ViennaDotNet.Launcher.csproj.user

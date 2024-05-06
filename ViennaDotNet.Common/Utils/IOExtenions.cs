@@ -7,6 +7,8 @@ namespace ViennaDotNet.Common.Utils
         public static bool CanRead(this DirectoryInfo dirInfo)
         {
             // TODO: implement
+            if (!dirInfo.Exists) return false;
+
             if (Environment.OSVersion.Platform != PlatformID.Win32NT)
                 return true;
 
