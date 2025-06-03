@@ -45,9 +45,8 @@ public class WorkshopRouter : ControllerBase
     private static EarthDB earthDB => Program.DB;
     private static Catalog catalog => Program.Catalog;
 
-    [HttpGet]
-    [Route("player/utilityBlocks")]
-    public IActionResult GetUtilityBlocks()
+    [HttpGet("player/utilityBlocks")]
+    public async Task<IActionResult> GetUtilityBlocks(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -60,10 +59,10 @@ public class WorkshopRouter : ControllerBase
         EarthDB.Results.GenericResult<SmeltingSlots> smeltingSlotsResult;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("crafting", playerId, typeof(CraftingSlots))
                 .Get("smelting", playerId, typeof(SmeltingSlots))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             craftingSlotsResult = results.GetGeneric<CraftingSlots>("crafting");
             smeltingSlotsResult = results.GetGeneric<SmeltingSlots>("smelting");
         }
@@ -77,20 +76,20 @@ public class WorkshopRouter : ControllerBase
             {
                 "crafting",
                 new Dictionary<string, object>()
-        {
-            { "1", craftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[0], requestStartedOn, craftingSlotsResult.version, 1) },
-            {"2", craftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[1], requestStartedOn, craftingSlotsResult.version, 2) },
-            {"3", craftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[2], requestStartedOn, craftingSlotsResult.version, 3)},
-        }
+                {
+                    { "1", CraftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[0], requestStartedOn, craftingSlotsResult.version, 1) },
+                    {"2", CraftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[1], requestStartedOn, craftingSlotsResult.version, 2) },
+                    {"3", CraftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[2], requestStartedOn, craftingSlotsResult.version, 3)},
+                }
             },
             {
                 "smelting",
                 new Dictionary<string, object>()
-        {
-            {"1", smeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[0], requestStartedOn, smeltingSlotsResult.version, 1) },
-            {"2", smeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[1], requestStartedOn, smeltingSlotsResult.version, 2)},
-            {"3", smeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[2], requestStartedOn, smeltingSlotsResult.version, 3)},
-        }
+                {
+                    {"1", SmeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[0], requestStartedOn, smeltingSlotsResult.version, 1) },
+                    {"2", SmeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[1], requestStartedOn, smeltingSlotsResult.version, 2)},
+                    {"3", SmeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[2], requestStartedOn, smeltingSlotsResult.version, 3)},
+                }
             }
         };
 
@@ -98,9 +97,8 @@ public class WorkshopRouter : ControllerBase
         return Content(resp, "application/json");
     }
 
-    [HttpGet]
-    [Route("crafting/{slotIndex}")]
-    public IActionResult GetCraftingStatus(int slotIndex)
+    [HttpGet("crafting/{slotIndex}")]
+    public async Task<IActionResult> GetCraftingStatus(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -111,12 +109,12 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("crafting", playerId, typeof(CraftingSlots))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             EarthDB.Results.GenericResult<CraftingSlots> craftingSlotsResult = results.GetGeneric<CraftingSlots>("crafting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(craftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version, slotIndex)));
+            string resp = JsonConvert.SerializeObject(new EarthApiResponse(CraftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version, slotIndex)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -124,9 +122,9 @@ public class WorkshopRouter : ControllerBase
             throw new ServerErrorException(ex);
         }
     }
-    [HttpGet]
-    [Route("smelting/{slotIndex}")]
-    public IActionResult GetSmeltingStatus(int slotIndex)
+
+    [HttpGet("smelting/{slotIndex}")]
+    public async Task<IActionResult> GetSmeltingStatus(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -137,12 +135,12 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("smelting", playerId, typeof(SmeltingSlots))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             EarthDB.Results.GenericResult<SmeltingSlots> smeltingSlotsResult = results.GetGeneric<SmeltingSlots>("smelting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(this.smeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version, slotIndex)));
+            string resp = JsonConvert.SerializeObject(new EarthApiResponse(SmeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version, slotIndex)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -151,9 +149,8 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-    [HttpPost]
-    [Route("crafting/{slotIndex}/start")]
-    public async Task<IActionResult> StartCrafting(int slotIndex)
+    [HttpPost("crafting/{slotIndex}/start")]
+    public async Task<IActionResult> StartCrafting(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -162,7 +159,7 @@ public class WorkshopRouter : ControllerBase
         // request.timestamp
         long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
 
-        StartRequestCrafting? startRequest = await Request.Body.AsJson<StartRequestCrafting>();
+        StartRequestCrafting? startRequest = await Request.Body.AsJsonAsync<StartRequestCrafting>(cancellationToken);
         if (startRequest is null || startRequest.multiplier < 1)
             return BadRequest();
 
@@ -193,7 +190,7 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("crafting", playerId, typeof(CraftingSlots))
                 .Get("inventory", playerId, typeof(Inventory))
                 .Get("hotbar", playerId, typeof(Hotbar))
@@ -231,13 +228,13 @@ public class WorkshopRouter : ControllerBase
 
                     hotbar.limitToInventory(inventory);
 
-                    craftingSlot.activeJob = new CraftingSlot.ActiveJob(startRequest.sessionId, recipe.id, requestStartedOn, inputItems.ToArray(), startRequest.multiplier, 0, false);
+                    craftingSlot.activeJob = new CraftingSlot.ActiveJob(startRequest.sessionId, recipe.id, requestStartedOn, [.. inputItems], startRequest.multiplier, 0, false);
 
                     query.Update("crafting", playerId, craftingSlots).Update("inventory", playerId, inventory).Update("hotbar", playerId, hotbar);
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
             return Content(resp, "application/json");
@@ -247,9 +244,9 @@ public class WorkshopRouter : ControllerBase
             throw new ServerErrorException(ex);
         }
     }
-    [HttpPost]
-    [Route("smelting/{slotIndex}/start")]
-    public async Task<IActionResult> StartSmelting(int slotIndex)
+
+    [HttpPost("smelting/{slotIndex}/start")]
+    public async Task<IActionResult> StartSmelting(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -258,7 +255,7 @@ public class WorkshopRouter : ControllerBase
         // request.timestamp
         long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
 
-        StartRequestSmelting? startRequest = await Request.Body.AsJson<StartRequestSmelting>();
+        StartRequestSmelting? startRequest = await Request.Body.AsJsonAsync<StartRequestSmelting>(cancellationToken);
         if (startRequest is null || startRequest.multiplier < 1)
             return BadRequest();
 
@@ -283,7 +280,7 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("smelting", playerId, typeof(SmeltingSlots))
                 .Get("inventory", playerId, typeof(Inventory))
                 .Get("hotbar", playerId, typeof(Hotbar))
@@ -374,7 +371,7 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
             return Content(resp, "application/json");
@@ -385,9 +382,8 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-    [HttpPost]
-    [Route("crafting/{slotIndex}/collectItems")]
-    public IActionResult CollectCraftingItems(int slotIndex)
+    [HttpPost("crafting/{slotIndex}/collectItems")]
+    public async Task<IActionResult> CollectCraftingItems(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -398,7 +394,7 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("crafting", playerId, typeof(CraftingSlots))
                 .Then(results1 =>
                 {
@@ -428,7 +424,7 @@ public class WorkshopRouter : ControllerBase
                         .Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.CraftingCompletedEntry(requestStartedOn, rewards.toDBRewardsModel())))
                         .Then(rewards.toRedeemQuery(playerId, requestStartedOn, catalog));
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>()
             {
@@ -441,9 +437,9 @@ public class WorkshopRouter : ControllerBase
             throw new ServerErrorException(ex);
         }
     }
-    [HttpPost]
-    [Route("smelting/{slotIndex}/collectItems")]
-    public IActionResult CollectSmeltingItems(int slotIndex)
+
+    [HttpPost("smelting/{slotIndex}/collectItems")]
+    public async Task<IActionResult> CollectSmeltingItems(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -454,7 +450,7 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("smelting", playerId, typeof(SmeltingSlots))
                 .Then(results1 =>
                 {
@@ -493,7 +489,7 @@ public class WorkshopRouter : ControllerBase
                         .Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.SmeltingCompletedEntry(requestStartedOn, rewards.toDBRewardsModel())))
                         .Then(rewards.toRedeemQuery(playerId, requestStartedOn, catalog));
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>()
             {
@@ -507,9 +503,8 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-    [HttpPost]
-    [Route("crafting/{slotIndex}/stop")]
-    public IActionResult StopCraftingJob(int slotIndex)
+    [HttpPost("crafting/{slotIndex}/stop")]
+    public async Task<IActionResult> StopCraftingJob(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -520,7 +515,7 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("crafting", playerId, typeof(CraftingSlots))
                 .Get("inventory", playerId, typeof(Inventory))
                 .Get("journal", playerId, typeof(Journal))
@@ -569,11 +564,11 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             EarthDB.Results.GenericResult<CraftingSlots> craftingSlotsResult = results.GetGeneric<CraftingSlots>("crafting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(craftingSlotModelToResponse(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version), new EarthApiResponse.Updates(results)));
+            string resp = JsonConvert.SerializeObject(new EarthApiResponse(CraftingSlotModelToResponse(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version), new EarthApiResponse.Updates(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -581,9 +576,9 @@ public class WorkshopRouter : ControllerBase
             throw new ServerErrorException(ex);
         }
     }
-    [HttpPost]
-    [Route("smelting/{slotIndex}/stop")]
-    public IActionResult StopSmeltingJob(int slotIndex)
+
+    [HttpPost("smelting/{slotIndex}/stop")]
+    public async Task<IActionResult> StopSmeltingJob(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -594,7 +589,7 @@ public class WorkshopRouter : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("smelting", playerId, typeof(SmeltingSlots))
                 .Get("inventory", playerId, typeof(Inventory))
                 .Get("journal", playerId, typeof(Journal))
@@ -652,11 +647,11 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             EarthDB.Results.GenericResult<SmeltingSlots> smeltingSlotsResult = results.GetGeneric<SmeltingSlots>("smelting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(smeltingSlotModelToResponse(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version), new EarthApiResponse.Updates(results)));
+            string resp = JsonConvert.SerializeObject(new EarthApiResponse(SmeltingSlotModelToResponse(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version), new EarthApiResponse.Updates(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -665,9 +660,8 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-    [HttpPost]
-    [Route("crafting/{slotIndex}/finish")]
-    public async Task<IActionResult> FinishCrafting(int slotIndex)
+    [HttpPost("crafting/{slotIndex}/finish")]
+    public async Task<IActionResult> FinishCrafting(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -676,13 +670,13 @@ public class WorkshopRouter : ControllerBase
         // request.timestamp
         long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
 
-        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJson<ExpectedPurchasePrice>();
+        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJsonAsync<ExpectedPurchasePrice>(cancellationToken);
         if (expectedPurchasePrice is null || expectedPurchasePrice.expectedPurchasePrice < 0)
             return BadRequest();
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("crafting", playerId, typeof(CraftingSlots))
                 .Get("profile", playerId, typeof(Profile))
                 .Then(results1 =>
@@ -719,7 +713,7 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             Profile profile = (Profile)results.Get("profile").Value;
 
@@ -731,9 +725,9 @@ public class WorkshopRouter : ControllerBase
             throw new ServerErrorException(ex);
         }
     }
-    [HttpPost]
-    [Route("smelting/{slotIndex}/finish")]
-    public async Task<IActionResult> FinishSmelting(int slotIndex)
+
+    [HttpPost("smelting/{slotIndex}/finish")]
+    public async Task<IActionResult> FinishSmelting(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
@@ -742,13 +736,13 @@ public class WorkshopRouter : ControllerBase
         // request.timestamp
         long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
 
-        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJson<ExpectedPurchasePrice>();
+        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJsonAsync<ExpectedPurchasePrice>(cancellationToken);
         if (expectedPurchasePrice is null || expectedPurchasePrice.expectedPurchasePrice < 0)
             return BadRequest();
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("smelting", playerId, typeof(SmeltingSlots))
                 .Get("profile", playerId, typeof(Profile))
                 .Then(results1 =>
@@ -786,7 +780,7 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             Profile profile = (Profile)results.Get("profile").Value;
 
@@ -799,8 +793,7 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-    [HttpGet]
-    [Route("crafting/finish/price")]
+    [HttpGet("crafting/finish/price")]
     public IActionResult GetCraftingPrice()
     {
         //TimeSpan remainingTime = TimeSpan.Parse(Request.Query["remainingTime"]);
@@ -825,8 +818,8 @@ public class WorkshopRouter : ControllerBase
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(new FinishPrice(finishPrice.price, 0, TimeFormatter.FormatDuration(finishPrice.validFor))));
         return Content(resp, "application/json");
     }
-    [HttpGet]
-    [Route("smelting/finish/price")]
+
+    [HttpGet("smelting/finish/price")]
     public IActionResult GetSmeltingPrice()
     {
         //TimeSpan remainingTime = TimeSpan.Parse(Request.Query["remainingTime"]);
@@ -852,21 +845,20 @@ public class WorkshopRouter : ControllerBase
         return Content(resp, "application/json");
     }
 
-    [HttpPost]
-    [Route("crafting/{slotIndex}/unlock")]
-    public async Task<IActionResult> UnlockCraftingSlot(int slotIndex)
+    [HttpPost("crafting/{slotIndex}/unlock")]
+    public async Task<IActionResult> UnlockCraftingSlot(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
             return BadRequest();
 
-        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJson<ExpectedPurchasePrice>();
+        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJsonAsync<ExpectedPurchasePrice>(cancellationToken);
         if (expectedPurchasePrice is null || expectedPurchasePrice.expectedPurchasePrice < 0)
             return BadRequest();
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("crafting", playerId, typeof(CraftingSlots))
                 .Get("profile", playerId, typeof(Profile))
                 .Then(results1 =>
@@ -894,7 +886,7 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
             return Content(resp, "application/json");
@@ -904,21 +896,21 @@ public class WorkshopRouter : ControllerBase
             throw new ServerErrorException(ex);
         }
     }
-    [HttpPost]
-    [Route("smelting/{slotIndex}/unlock")]
-    public async Task<IActionResult> UnlockSmeltingSlot(int slotIndex)
+
+    [HttpPost("smelting/{slotIndex}/unlock")]
+    public async Task<IActionResult> UnlockSmeltingSlot(int slotIndex, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId) || slotIndex < 1 || slotIndex > 3)
             return BadRequest();
 
-        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJson<ExpectedPurchasePrice>();
+        ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJsonAsync<ExpectedPurchasePrice>(cancellationToken);
         if (expectedPurchasePrice is null || expectedPurchasePrice.expectedPurchasePrice < 0)
             return BadRequest();
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("smelting", playerId, typeof(SmeltingSlots))
                 .Get("profile", playerId, typeof(Profile))
                 .Then(results1 =>
@@ -946,7 +938,7 @@ public class WorkshopRouter : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
             return Content(resp, "application/json");
@@ -957,15 +949,15 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-    private Types.Workshop.CraftingSlot craftingSlotModelToResponseIncludingLocked(CraftingSlot craftingSlotModel, long currentTime, int streamVersion, int slotIndex)
+    private Types.Workshop.CraftingSlot CraftingSlotModelToResponseIncludingLocked(CraftingSlot craftingSlotModel, long currentTime, int streamVersion, int slotIndex)
     {
         if (craftingSlotModel.locked)
             return new Types.Workshop.CraftingSlot(null, null, null, null, 0, 0, 0, null, null, State.LOCKED, null, new UnlockPrice(CraftingCalculator.calculateUnlockPrice(slotIndex), 0), streamVersion);
         else
-            return craftingSlotModelToResponse(craftingSlotModel, currentTime, streamVersion);
+            return CraftingSlotModelToResponse(craftingSlotModel, currentTime, streamVersion);
     }
 
-    private Types.Workshop.CraftingSlot craftingSlotModelToResponse(CraftingSlot craftingSlotModel, long currentTime, int streamVersion)
+    private static Types.Workshop.CraftingSlot CraftingSlotModelToResponse(CraftingSlot craftingSlotModel, long currentTime, int streamVersion)
     {
         if (craftingSlotModel.locked)
             throw new ArgumentException(nameof(craftingSlotModel));
@@ -978,11 +970,11 @@ public class WorkshopRouter : ControllerBase
                 activeJob.sessionId,
                 activeJob.recipeId,
                 new OutputItem(state.output.id, state.output.count),
-                activeJob.input.Select(item => new Types.Workshop.InputItem(
+                [.. activeJob.input.Select(item => new Types.Workshop.InputItem(
                     item.id,
                     item.count,
-                    item.instances.Select(item => item.instanceId).ToArray()
-                )).ToArray(),
+                    [.. item.instances.Select(item => item.instanceId)]
+                ))],
                 state.completedRounds,
                 state.availableRounds,
                 state.totalRounds,
@@ -998,15 +990,15 @@ public class WorkshopRouter : ControllerBase
             return new Types.Workshop.CraftingSlot(null, null, null, null, 0, 0, 0, null, null, State.EMPTY, null, null, streamVersion);
     }
 
-    private Types.Workshop.SmeltingSlot smeltingSlotModelToResponseIncludingLocked(SmeltingSlot smeltingSlotModel, long currentTime, int streamVersion, int slotIndex)
+    private Types.Workshop.SmeltingSlot SmeltingSlotModelToResponseIncludingLocked(SmeltingSlot smeltingSlotModel, long currentTime, int streamVersion, int slotIndex)
     {
         if (smeltingSlotModel.locked)
             return new Types.Workshop.SmeltingSlot(null, null, null, null, null, null, 0, 0, 0, null, null, State.LOCKED, null, new UnlockPrice(SmeltingCalculator.calculateUnlockPrice(slotIndex), 0), streamVersion);
         else
-            return smeltingSlotModelToResponse(smeltingSlotModel, currentTime, streamVersion);
+            return SmeltingSlotModelToResponse(smeltingSlotModel, currentTime, streamVersion);
     }
 
-    private Types.Workshop.SmeltingSlot smeltingSlotModelToResponse(SmeltingSlot smeltingSlotModel, long currentTime, int streamVersion)
+    private static Types.Workshop.SmeltingSlot SmeltingSlotModelToResponse(SmeltingSlot smeltingSlotModel, long currentTime, int streamVersion)
     {
         if (smeltingSlotModel.locked)
             throw new ArgumentException(nameof(smeltingSlotModel));
@@ -1079,38 +1071,32 @@ public class WorkshopRouter : ControllerBase
         }
     }
 
-
-    record StartRequestCrafting(
+    private sealed record StartRequestCrafting(
         string sessionId,
         string recipeId,
         int multiplier,
         StartRequestCrafting.Item[] ingredients
     )
     {
-        public record Item(
+        public sealed record Item(
             string itemId,
             int quantity,
             string[] itemInstanceIds
-        )
-        {
-        }
+        );
     }
 
-    record StartRequestSmelting(
+    private sealed record StartRequestSmelting(
         string sessionId,
         string recipeId,
         int multiplier,
         StartRequestSmelting.Item input,
         StartRequestSmelting.Item? fuel
-
     )
     {
-        public record Item(
+        public sealed record Item(
             string itemId,
             int quantity,
             string[] itemInstanceIds
-        )
-        {
-        }
+        );
     }
 }

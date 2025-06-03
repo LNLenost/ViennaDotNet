@@ -22,8 +22,8 @@ public class TappablesController : ControllerBase
     private static EarthDB earthDB => Program.DB;
     private static Catalog catalog => Program.Catalog;
 
-    [Route("locations/{lat}/{lon}")]
-    public IActionResult GetTappables(double lat, double lon)
+    [HttpGet("locations/{lat}/{lon}")]
+    public async Task<IActionResult> GetTappables(double lat, double lon, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -37,9 +37,9 @@ public class TappablesController : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("redeemedTappables", playerId, typeof(RedeemedTappables))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             RedeemedTappables redeemedTappables = (RedeemedTappables)results.Get("redeemedTappables").Value;
 
             ActiveLocation[] activeLocations = tappables
@@ -71,15 +71,14 @@ public class TappablesController : ControllerBase
         }
     }
 
-    [HttpPost]
-    [Route("tappables/{tileId}")]
-    public async Task<IActionResult> RedeemTappable(string tileId)
+    [HttpPost("tappables/{tileId}")]
+    public async Task<IActionResult> RedeemTappable(string tileId, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
             return BadRequest();
 
-        TappableRequest? tappableRequest = await Request.Body.AsJson<TappableRequest>();
+        TappableRequest? tappableRequest = await Request.Body.AsJsonAsync<TappableRequest>(cancellationToken);
         if (tappableRequest is null)
             return BadRequest();
 
@@ -92,7 +91,7 @@ public class TappablesController : ControllerBase
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("redeemedTappables", playerId, typeof(RedeemedTappables))
                 .Then(results1 =>
                 {
@@ -122,7 +121,7 @@ public class TappablesController : ControllerBase
 
                     return query;
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             if ((bool)results.getExtra("success"))
             {
@@ -147,10 +146,8 @@ public class TappablesController : ControllerBase
         }
     }
 
-    record TappableRequest(
+    private sealed record TappableRequest(
             string id,
             Coordinate playerCoordinate
-        )
-    {
-    }
+        );
 }

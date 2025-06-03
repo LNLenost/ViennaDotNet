@@ -152,33 +152,27 @@ public sealed class BuildplateInstancesManager
         }
     }
 
-    private record StartRequest(
+    private sealed record StartRequest(
         string playerId,
         string buildplateId,
         bool survival,
         bool night
-    )
-    {
-    }
+    );
 
-    private record PreviewRequest(
+    private sealed record PreviewRequest(
         string serverDataBase64,
         bool night
-    )
-    {
-    }
+    );
 
-    private record StartNotification(
+    private sealed record StartNotification(
         string instanceId,
         string playerId,
         string buildplateId,
         string address,
         int port
-    )
-    {
-    }
+    );
 
-    public record InstanceInfo(
+    public sealed record InstanceInfo(
         string instanceId,
 
         string playerId,
@@ -188,7 +182,5 @@ public sealed class BuildplateInstancesManager
         int port,
 
         bool ready
-    )
-    {
-    }
+    );
 }

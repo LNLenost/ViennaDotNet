@@ -1,6 +1,6 @@
 ﻿namespace ViennaDotNet.PreviewGenerator;
 
-record PreviewModel(
+internal sealed record PreviewModel(
      int format_version, // always 1
      bool isNight,
      PreviewModel.SubChunk[] sub_chunks,
@@ -8,37 +8,31 @@ record PreviewModel(
      PreviewModel.Entity[] entities
 )
 {
-    public record Position(
+    public sealed record Position(
         int x,
         int y,
         int z
-    )
-    {
-    }
+    );
 
-    public record SubChunk(
+    public sealed record SubChunk(
         Position position,
         SubChunk.PaletteEntry[] block_palette,
         int[] blocks
     )
     {
-        public record PaletteEntry(
+        public sealed record PaletteEntry(
             string name,
             int data
-        )
-        {
-        }
+        );
     }
 
-    public record BlockEntity(
+    public sealed record BlockEntity(
         int type,
         Position position,
         JsonNbtConverter.JsonNbtTag data
-    )
-    {
-    }
+    );
 
-    public record Entity(
+    public sealed record Entity(
         string name,
         Entity.Position position,
         Entity.Rotation rotation,
@@ -52,19 +46,15 @@ record PreviewModel(
         bool isPersonaSkin
     )
     {
-        public record Position(
+        public sealed record Position(
             float x,
             float y,
             float z
-        )
-        {
-        }
+        );
 
-        public record Rotation(
+        public sealed record Rotation(
             float x,
             float y
-        )
-        {
-        }
+        );
     }
 }

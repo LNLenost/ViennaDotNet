@@ -134,18 +134,14 @@ public sealed class BuildplateInstanceRequestHandler
         ));
     }
 
-    private record BuildplateLoadRequest(
+    private sealed record BuildplateLoadRequest(
         string playerId,
         string buildplateId
-    )
-    {
-    }
+    );
 
-    private record BuildplateLoadResponse(
+    private sealed record BuildplateLoadResponse(
         string serverDataBase64
-    )
-    {
-    }
+    );
 
     private BuildplateLoadResponse? handleLoad(string playerId, string buildplateId)
     {
@@ -487,12 +483,10 @@ public sealed class BuildplateInstanceRequestHandler
         }
     }
 
-    private record RequestWithBuildplateId<T>(
+    private sealed record RequestWithBuildplateId<T>(
         string playerId,
         string buildplateId,
         string instanceId,
         T request
-    )
-    {
-    }
+    );
 }

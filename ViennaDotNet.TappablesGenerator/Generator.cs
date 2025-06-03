@@ -34,7 +34,7 @@ public class Generator
     private static readonly long MIN_DELAY = 1 * 60 * 1000;
     private static readonly long MAX_DELAY = 2 * 60 * 1000;
 
-    internal record TappableConfig(
+    internal sealed record TappableConfig(
         string tappableID,
         Rarity rarity,
         int experiencePoints,
@@ -53,12 +53,10 @@ public class Generator
             [EnumMember(Value = "Legendary")] LEGENDARY
         }
 
-        public record ItemCount(
+        public sealed record ItemCount(
             int min,
             int max
-        )
-        {
-        }
+        );
     }
 
     private readonly TappableConfig[] tappableConfigs;

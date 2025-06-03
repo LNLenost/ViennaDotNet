@@ -20,7 +20,8 @@ public class InventoryController : ControllerBase
     private static EarthDB earthDB => Program.DB;
     private static Catalog catalog => Program.Catalog;
 
-    public IActionResult GetInventory()
+    [HttpGet]
+    public async Task<IActionResult> GetInventory(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -31,11 +32,12 @@ public class InventoryController : ControllerBase
         Journal journalModel;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("inventory", playerId, typeof(Inventory))
                 .Get("hotbar", playerId, typeof(Hotbar))
                 .Get("journal", playerId, typeof(Journal))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
+
             inventoryModel = (Inventory)results.Get("inventory").Value;
             hotbarModel = (Hotbar)results.Get("hotbar").Value;
             journalModel = (Journal)results.Get("journal").Value;
@@ -53,13 +55,15 @@ public class InventoryController : ControllerBase
                 item.instanceId,
                 item.instanceId != null ? ItemWear.wearToHealth(item.uuid, inventoryModel.getItemInstance(item.uuid, item.instanceId)!.wear, catalog.itemsCatalog) : 0.0f
         ) : null).ToArray();
+
         inventory["hotbar"] = hotbarItems;
         Dictionary<string, int?> hotbarItemCounts = [];
-        Array.ForEach(hotbarModel.items, item =>
+        foreach (var item in hotbarModel.items)
         {
             if (item != null)
                 hotbarItemCounts[item.uuid] = hotbarItemCounts.GetOrDefault(item.uuid, 0) + item.count;
-        });
+        }
+
         StackableInventoryItem[] stackableItems = inventoryModel.getStackableItems().Select(item =>
         {
             string uuid = item.id;
@@ -75,13 +79,15 @@ public class InventoryController : ControllerBase
                 new StackableInventoryItem.On(lastSeen)
             );
         }).ToArray();
+
         inventory["stackableItems"] = stackableItems;
         HashSet<string> hotbarItemInstances = [];
-        Array.ForEach(hotbarModel.items, item =>
+        foreach (var item in hotbarModel.items)
         {
             if (item != null && item.instanceId != null)
                 hotbarItemInstances.Add(item.instanceId);
-        });
+        }
+
         NonStackableInventoryItem[] nonStackableItems = inventoryModel.getNonStackableItems().Select(item =>
         {
             string uuid = item.id;
@@ -96,20 +102,21 @@ public class InventoryController : ControllerBase
                 new NonStackableInventoryItem.On(lastSeen)
             );
         }).ToArray();
+
         inventory["nonStackableItems"] = nonStackableItems;
 
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(inventory));
         return Content(resp, "application/json");
     }
 
-    [Route("hotbar")]
-    public async Task<IActionResult> GetHotbar()
+    [HttpGet("hotbar")]
+    public async Task<IActionResult> GetHotbar(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
             return BadRequest();
 
-        SetHotbarRequestItem[]? setHotbarRequestItems = await Request.Body.AsJson<SetHotbarRequestItem[]>();
+        SetHotbarRequestItem[]? setHotbarRequestItems = await Request.Body.AsJsonAsync<SetHotbarRequestItem[]>(cancellationToken);
         if (setHotbarRequestItems is null || setHotbarRequestItems.Length != 7)
             return BadRequest();
 
@@ -117,7 +124,7 @@ public class InventoryController : ControllerBase
         Hotbar hotbarModel;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("inventory", playerId, typeof(Inventory))
                 .Then(results1 =>
                 {
@@ -134,7 +141,7 @@ public class InventoryController : ControllerBase
                         .Get("inventory", playerId, typeof(Inventory))
                         .Get("hotbar", playerId, typeof(Hotbar));
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
 
             inventoryModel = (Inventory)results.Get("inventory").Value;
             hotbarModel = (Hotbar)results.Get("hotbar").Value;
@@ -155,7 +162,7 @@ public class InventoryController : ControllerBase
         return Content(resp, "application/json");
     }
 
-    record SetHotbarRequestItem(
+    private sealed record SetHotbarRequestItem(
         string id,
         int count,
         string? instanceId

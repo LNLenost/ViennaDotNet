@@ -30,9 +30,9 @@ public class LocatorController : ControllerBase
                 )),
                 new JProperty("supportedEnvironments", JToken.FromObject(new Dictionary<string, List<string>>() { { "2020.1217.02", new List<string>() { "production" } }, { "2020.1210.01", new List<string>() { "production" } } }))
             )),
-            new JProperty("expiration", null),
-            new JProperty("continuationToken", null),
-            new JProperty("updates", null)
+            new JProperty("expiration", null!),
+            new JProperty("continuationToken", null!),
+            new JProperty("updates", null!)
         );
 
         string resp = JsonConvert.SerializeObject(response);

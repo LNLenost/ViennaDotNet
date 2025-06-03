@@ -19,16 +19,16 @@ public class ProfileController : ControllerBase
 {
     private static EarthDB earthDB => Program.DB;
 
-    [Route("profile/{userId}")]
-    public IActionResult GetProfile(string userId)
+    [HttpGet("profile/{userId}")]
+    public async Task<IActionResult> GetProfile(string userId, CancellationToken cancellationToken)
     {
-        Profile profile = (Profile)new EarthDB.Query(false)
+        Profile profile = (Profile)(await new EarthDB.Query(false)
             .Get("profile", userId.ToLowerInvariant(), typeof(Profile))
-            .Execute(earthDB)
+            .ExecuteAsync(earthDB, cancellationToken))
             .Get("profile").Value;
 
         LevelUtils.Level[] levels = LevelUtils.getLevels();
-        int currentLevelExperience = profile.experience - (profile.level > 1 ? (profile.level - 2 < levels.Length ? levels[profile.level - 2].experienceRequired : levels[levels.Length - 1].experienceRequired) : 0);
+        int currentLevelExperience = profile.experience - (profile.level > 1 ? (profile.level - 2 < levels.Length ? levels[profile.level - 2].experienceRequired : levels[^1].experienceRequired) : 0);
         int experienceRemaining = profile.level - 1 < levels.Length ? levels[profile.level - 1].experienceRequired - profile.experience : 0;
 
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Profile.Profile(
@@ -43,12 +43,13 @@ public class ProfileController : ControllerBase
             experienceRemaining,
             profile.health,
             profile.health / 20.0f * 100.0f)));
+
         return Content(resp, "application/json");
     }
 
     [ResponseCache(Duration = 11200)]
-    [Route("rubies")]
-    public IActionResult GetRubies()
+    [HttpGet("rubies")]
+    public async Task<IActionResult> GetRubies(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -56,9 +57,9 @@ public class ProfileController : ControllerBase
 
         try
         {
-            Profile profile = (Profile)new EarthDB.Query(false)
+            Profile profile = (Profile)(await new EarthDB.Query(false)
                 .Get("profile", playerId, typeof(Profile))
-                .Execute(earthDB)
+                .ExecuteAsync(earthDB, cancellationToken))
                 .Get("profile").Value;
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(profile.rubies.purchased + profile.rubies.earned));
@@ -72,8 +73,8 @@ public class ProfileController : ControllerBase
     }
 
     [ResponseCache(Duration = 11200)]
-    [Route("splitRubies")]
-    public IActionResult GetSplitRubies()
+    [HttpGet("splitRubies")]
+    public async Task<IActionResult> GetSplitRubies(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -81,9 +82,9 @@ public class ProfileController : ControllerBase
 
         try
         {
-            Profile profile = (Profile)new EarthDB.Query(false)
+            Profile profile = (Profile)(await new EarthDB.Query(false)
                 .Get("profile", playerId, typeof(Profile))
-                .Execute(earthDB)
+                .ExecuteAsync(earthDB, cancellationToken))
                 .Get("profile").Value;
 
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Profile.SplitRubies(profile.rubies.purchased, profile.rubies.earned)));

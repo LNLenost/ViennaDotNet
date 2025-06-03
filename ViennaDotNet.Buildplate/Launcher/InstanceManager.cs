@@ -16,32 +16,27 @@ public class InstanceManager
     private bool shuttingDown = false;
     private readonly object lockObj = new bool();
 
-    record StartRequest(
+    private sealed record StartRequest(
         string instanceId,
         string playerId,
         string buildplateId,
         bool survival,
         bool night
-    )
-    {
-    }
+    );
 
-    record StartNotification(
+    private sealed record StartNotification(
         string instanceId,
         string playerId,
         string buildplateId,
         string address,
         int port
-    )
-    {
-    }
+    );
 
-    record PreviewRequest(
+    private sealed record PreviewRequest(
         string serverDataBase64,
         bool night
-    )
-    {
-    }
+    );
+
     public InstanceManager(EventBusClient eventBusClient, Starter starter, PreviewGenerator previewGenerator)
     {
         this.starter = starter;

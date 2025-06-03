@@ -72,13 +72,11 @@ public sealed class TappablesManager
             Log.Warning("Active tile notification event was rejected/ignored");
     }
 
-    private record ActiveTileNotification(
+    private sealed record ActiveTileNotification(
         int x,
         int y,
         string playerId
-    )
-    {
-    }
+    );
 
     private void handleEvent(Subscriber.Event @event)
     {

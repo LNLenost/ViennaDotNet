@@ -24,8 +24,8 @@ public class ResourcePackController : ControllerBase
                     new JProperty("resourcePackId", "dba38e59-091a-4826-b76a-a08d7de5a9e2")
                 )
             )),
-            new JProperty("expiration", null),
-            new JProperty("continuationToken", null),
+            new JProperty("expiration", null!),
+            new JProperty("continuationToken", null!),
             new JProperty("updates", new Dictionary<string, string>())
         );
 
@@ -37,7 +37,8 @@ public class ResourcePackController : ControllerBase
 [Route("cdn/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35")]
 public class ResourcePackCdnController : ControllerBase
 {
-    public IActionResult Get()
+    [HttpGet]
+    public async Task<IActionResult> Get()
     {
         string resourcePackFilePath = @"./data/resourcepacks/vanilla.zip"; //resource packs are distributed as renamed zip files containing an MCpack
 
@@ -47,10 +48,10 @@ public class ResourcePackCdnController : ControllerBase
             return BadRequest(); //we cannot serve you.
         }
 
-        byte[] fileData = System.IO.File.ReadAllBytes(resourcePackFilePath); //Namespaces
+        // TODO: use Stream
+        byte[] fileData = await System.IO.File.ReadAllBytesAsync(resourcePackFilePath); //Namespaces
         var cd = new System.Net.Mime.ContentDisposition { FileName = "dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35", Inline = true };
-        Response.Headers.Add("Content-Disposition", cd.ToString());
-
+        Response.Headers.Append("Content-Disposition", cd.ToString());
 
         return File(fileData, "application/octet-stream", "dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35");
     }

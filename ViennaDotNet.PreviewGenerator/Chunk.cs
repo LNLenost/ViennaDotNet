@@ -7,7 +7,7 @@ using ViennaDotNet.PreviewGenerator.Utils;
 
 namespace ViennaDotNet.PreviewGenerator;
 
-internal class Chunk
+internal sealed class Chunk
 {
     public static Chunk? read(CompoundTag chunkTag)
     {

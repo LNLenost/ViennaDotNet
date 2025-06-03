@@ -21,15 +21,15 @@ public class TokensController : ControllerBase
     private static EarthDB earthDB => Program.DB;
 
     [HttpGet]
-    public IActionResult Get()
+    public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
             return BadRequest();
 
-        Tokens tokens = (Tokens)new EarthDB.Query(false)
+        Tokens tokens = (Tokens)(await new EarthDB.Query(false)
             .Get("tokens", playerId, typeof(Tokens))
-            .Execute(earthDB)
+            .ExecuteAsync(earthDB, cancellationToken))
             .Get("tokens").Value;
 
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, Dictionary<string, Token>>()
@@ -46,9 +46,8 @@ public class TokensController : ControllerBase
     }
 
     // TODO: some token types might have actions to perform when they're redeemed?
-    [HttpPost]
-    [Route("{tokenId}/redeem")]
-    public IActionResult Redeem(string tokenId)
+    [HttpPost("{tokenId}/redeem")]
+    public async Task<IActionResult> Redeem(string tokenId, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -57,7 +56,7 @@ public class TokensController : ControllerBase
         Tokens.Token? token;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("tokens", playerId, typeof(Tokens))
                 .Then(results1 =>
                 {
@@ -72,7 +71,7 @@ public class TokensController : ControllerBase
                         return new EarthDB.Query(false)
                             .Extra("success", false);
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             token = (bool)results.getExtra("success") ? (Tokens.Token)results.getExtra("token") : null;
         }
         catch (EarthDB.DatabaseException ex)

@@ -473,7 +473,7 @@ public class ObjectStoreClient
         }
     }
 
-    private class Command
+    private sealed class Command
     {
         public readonly Type type;
         public readonly object data;

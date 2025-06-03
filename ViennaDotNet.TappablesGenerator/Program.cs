@@ -7,13 +7,14 @@ namespace ViennaDotNet.TappablesGenerator;
 internal static class Program
 {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    class Options
+    private sealed class Options
     {
         [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]
         public string EventBusConnectionString { get; set; }
     }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    static int Main(string[] args)
+
+    private static int Main(string[] args)
     {
         var log = new LoggerConfiguration()
            .WriteTo.Console()

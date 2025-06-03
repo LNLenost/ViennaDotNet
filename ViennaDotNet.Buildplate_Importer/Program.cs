@@ -14,7 +14,7 @@ namespace ViennaDotNet.Buildplate_Importer;
 internal static class Program
 {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    class Options
+    private sealed class Options
     {
         [Option("db", Default = "./earth.db", Required = false, HelpText = "Database connection string")]
         public string DatabaseConnectionString { get; set; }
@@ -32,7 +32,8 @@ internal static class Program
         public string WorldPath { get; set; }
     }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    static async Task Main(string[] args)
+
+    private static async Task Main(string[] args)
     {
         var log = new LoggerConfiguration()
            .WriteTo.Console()
@@ -186,12 +187,11 @@ internal static class Program
         }
     }
 
-    record PreviewRequest(
+    private sealed record PreviewRequest(
         string serverDataBase64,
         bool night
-    )
-    {
-    }
+    );
+
     private static async Task<bool> storeBuildplate(EarthDB earthDB, EventBusClient? eventBusClient, ObjectStoreClient objectStoreClient, string playerId, string buildplateId, byte[] serverData, long timestamp)
     {
         string? preview;
@@ -223,7 +223,7 @@ internal static class Program
 
         try
         {
-            EarthDB.Results results = new EarthDB.Query(true)
+            EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("buildplates", playerId, typeof(Buildplates))
                 .Then(results1 =>
                 {
@@ -236,7 +236,7 @@ internal static class Program
                     return new EarthDB.Query(true)
                         .Update("buildplates", playerId, buildplates);
                 })
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB);
             return true;
         }
         catch (EarthDB.DatabaseException ex)

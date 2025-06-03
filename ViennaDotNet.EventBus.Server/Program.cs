@@ -5,11 +5,12 @@ namespace ViennaDotNet.EventBus.Server;
 
 internal static class Program
 {
-    class Options
+    private sealed class Options
     {
         [Option("port", Default = 5532, Required = false, HelpText = "Port to listen on")]
         public int Port { get; set; }
     }
+
     static int Main(string[] args)
     {
         var log = new LoggerConfiguration()

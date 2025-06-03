@@ -21,7 +21,7 @@ public class PlayerController : ControllerBase
             { "potions", new object[5] },
             { "miniFigs", new object[5] },
             { "miniFigRecords", new Dictionary<string, object>() },
-            { "activeEffects", new object[0] },
+            { "activeEffects", Array.Empty<object>() },
             { "scenarioBoosts", new Dictionary<string, object>() },
             { "expiration", null },
             { "statusEffects", new Dictionary<string, object>() {

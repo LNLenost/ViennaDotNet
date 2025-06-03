@@ -74,16 +74,11 @@ public sealed class EarthDB : IDisposable
         private List<ExtrasEntry> extras = [];
         private List<Func<Results, Query>> thenFunctions = [];
 
-        private record WriteObjectsEntry(string type, string id, object value)
-        {
-        }
+        private sealed record WriteObjectsEntry(string type, string id, object value);
 
-        private record ReadObjectsEntry(string type, string id, Type valueType)
-        {
-        }
-        private record ExtrasEntry(string name, object value)
-        {
-        }
+        private sealed record ReadObjectsEntry(string type, string id, Type valueType);
+
+        private sealed record ExtrasEntry(string name, object value);
 
         public Query(bool _write)
         {
@@ -125,6 +120,26 @@ public sealed class EarthDB : IDisposable
         }
         #endregion
 
+        public async Task<Results> ExecuteAsync(EarthDB earthDB, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                using SqliteTransaction transaction = earthDB.transaction(write);
+                Results results = await executeInternalAsync(transaction, write, null, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                if (transaction.Connection is not null)
+                {
+                    await transaction.Connection.CloseAsync();
+                }
+
+                return results;
+            }
+            catch (SqliteException ex)
+            {
+                throw new DatabaseException(ex);
+            }
+        }
+
         public Results Execute(EarthDB earthDB)
         {
             try
@@ -139,6 +154,97 @@ public sealed class EarthDB : IDisposable
             {
                 throw new DatabaseException(ex);
             }
+        }
+
+        private async Task<Results> executeInternalAsync(SqliteTransaction transaction, bool write, Dictionary<string, int?>? parentUpdates, CancellationToken cancellationToken)
+        {
+            if (this.write && !write)
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            Results results = new Results();
+            if (parentUpdates != null)
+            {
+                results.updates.AddRange(parentUpdates);
+            }
+
+            foreach (WriteObjectsEntry entry in writeObjects)
+            {
+                string json = JsonConvert.SerializeObject(entry.value);
+
+                var command = transaction.Connection!.CreateCommand();
+                command.CommandText = "INSERT OR REPLACE INTO objects(type, id, value, version) VALUES ($type, $id, $value, COALESCE((SELECT version FROM objects WHERE type == $type AND id == $id), 1) + 1)";
+
+                command.Parameters.AddWithValue("$type", entry.type);
+                command.Parameters.AddWithValue("$id", entry.id);
+                command.Parameters.AddWithValue("$value", json);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+
+                /*****************************/
+                command = transaction.Connection.CreateCommand();
+                command.CommandText = "SELECT version FROM objects WHERE type == $type AND id == $id";
+
+                command.Parameters.AddWithValue("$type", entry.type);
+                command.Parameters.AddWithValue("$id", entry.id);
+                using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+                {
+                    if (await reader.ReadAsync(cancellationToken))
+                    {
+                        int version = reader.GetInt32(0);
+                        results.updates[entry.type] = version;
+                    }
+                    else
+                    {
+                        throw new DatabaseException("Could not query updated object");
+                    }
+                }
+            }
+
+            foreach (ReadObjectsEntry entry in readObjects)
+            {
+                var command = transaction.Connection!.CreateCommand();
+                command.CommandText = "SELECT value, version FROM objects WHERE type == $type AND id == $id";
+
+                command.Parameters.AddWithValue("$type", entry.type);
+                command.Parameters.AddWithValue("$id", entry.id);
+                using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+                {
+                    if (await reader.ReadAsync(cancellationToken))
+                    {
+                        string json = reader.GetString(0);
+                        int version = reader.GetInt32(1);
+                        object value = JsonConvert.DeserializeObject(json, entry.valueType,
+                            new Tokens.TokenConverter(),
+                            new ActivityLog.Entry.EntryConverter()
+                        )!;
+                        results.getValues[entry.type] = new Results.Result(value, version);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            object value = Activator.CreateInstance(entry.valueType)!;
+                            results.getValues[entry.type] = new Results.Result(value, 1);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new DatabaseException(ex);
+                        }
+                    }
+                }
+            }
+
+            foreach (ExtrasEntry entry in extras)
+                results.extras[entry.name] = entry.value;
+
+            foreach (Func<Results, Query> function in thenFunctions)
+            {
+                Query query = function.Invoke(results);
+                results = await query.executeInternalAsync(transaction, write, results.updates, cancellationToken);
+            }
+
+            return results;
         }
 
         private Results executeInternal(SqliteTransaction transaction, bool write, Dictionary<string, int?>? parentUpdates)

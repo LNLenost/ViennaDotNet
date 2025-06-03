@@ -4,10 +4,10 @@ namespace ViennaDotNet.Common.Utils;
 
 public static class Extensions
 {
-    public static async Task<T?> AsJson<T>(this Stream stream)
+    public static async Task<T?> AsJsonAsync<T>(this Stream stream, CancellationToken cancellationToken)
     {
         using (StreamReader reader = new StreamReader(stream))
-            return JsonConvert.DeserializeObject<T>(await reader.ReadToEndAsync());
+            return JsonConvert.DeserializeObject<T>(await reader.ReadToEndAsync(cancellationToken));
     }
 
     public static async Task<string> ReadAsString(this Stream stream)

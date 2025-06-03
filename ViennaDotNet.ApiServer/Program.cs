@@ -24,7 +24,7 @@ public static class Program
     internal static BuildplateInstancesManager buildplateInstancesManager;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-    class Options
+    private sealed class Options
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     {
         [Option("port", Default = 80, Required = false, HelpText = "Port to listen on")]

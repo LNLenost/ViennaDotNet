@@ -1,6 +1,5 @@
 ﻿using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.Common.Utils;
-using ViennaDotNet.DB.Models.Common;
 using ViennaDotNet.DB.Models.Player.Workshop;
 
 namespace ViennaDotNet.ApiServer.Utils;

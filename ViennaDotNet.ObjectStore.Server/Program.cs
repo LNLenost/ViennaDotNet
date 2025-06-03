@@ -5,17 +5,16 @@ namespace ViennaDotNet.ObjectStore.Server;
 
 internal static class Program
 {
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    class Options
+    private sealed class Options
     {
         [Option("dataDir", Default = "data", Required = false, HelpText = "Directory where data is stored")]
-        public string DataDir { get; set; }
+        public string DataDir { get; set; } = null!;
 
         [Option("port", Default = 5396, Required = false, HelpText = "Port to listen on")]
         public int Port { get; set; }
     }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    static int Main(string[] args)
+
+    private static int Main(string[] args)
     {
         var log = new LoggerConfiguration()
             .WriteTo.Console()

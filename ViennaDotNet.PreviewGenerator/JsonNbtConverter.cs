@@ -6,7 +6,7 @@ using ViennaDotNet.PreviewGenerator.NBT;
 
 namespace ViennaDotNet.PreviewGenerator;
 
-internal class JsonNbtConverter
+internal sealed class JsonNbtConverter
 {
     public static JsonNbtTag convert(NbtMap tag)
     {

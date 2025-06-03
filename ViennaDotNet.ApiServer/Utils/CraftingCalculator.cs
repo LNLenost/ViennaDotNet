@@ -1,6 +1,5 @@
 ﻿using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.Common.Utils;
-using ViennaDotNet.DB.Models.Common;
 using ViennaDotNet.DB.Models.Player.Workshop;
 
 namespace ViennaDotNet.ApiServer.Utils;
@@ -12,7 +11,7 @@ public static class CraftingCalculator
         RecipesCatalog.CraftingRecipe recipe = catalog.recipesCatalog.crafting.Where(craftingRecipe => craftingRecipe.id == activeJob.recipeId).First();
 
         long roundDuration = TimeFormatter.ParseDuration(recipe.duration);
-        int completedRounds = activeJob.finishedEarly ? activeJob.totalRounds : Math.Min((int)((currentTime - activeJob.startTime) / roundDuration), activeJob.totalRounds);
+        int completedRounds = activeJob.finishedEarly ? activeJob.totalRounds : int.Min((int)((currentTime - activeJob.startTime) / roundDuration), activeJob.totalRounds);
         int availableRounds = completedRounds - activeJob.collectedRounds;
 
         InputItem[] input = new InputItem[recipe.ingredients.Length];
@@ -60,9 +59,7 @@ public static class CraftingCalculator
         public record OutputItem(
             string id,
             int count
-        )
-        {
-        }
+        );
     }
 
     // TODO: make this configurable

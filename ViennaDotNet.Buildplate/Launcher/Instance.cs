@@ -392,21 +392,20 @@ public class Instance
         }
     }
 
-    record RequestWithBuildplateIds(
+    private sealed record RequestWithBuildplateIds(
         string playerId,
         string buildplateId,
         string instanceId,
         object request
-    )
-    {
-    }
+    );
+
     private async Task<T?> sendEventBusRequest<T>(string type, object obj, bool returnResponse)
     {
         RequestWithBuildplateIds request = new RequestWithBuildplateIds(playerId, buildplateId, instanceId, obj);
 
         try
         {
-            var response = await requestSender!.request("buildplates", type, JsonConvert.SerializeObject(request)).Task;
+            string? response = await requestSender!.request("buildplates", type, JsonConvert.SerializeObject(request)).Task;
 
             if (response == null)
             {
@@ -432,7 +431,7 @@ public class Instance
     {
         try
         {
-            var response = await requestSender!.request("buildplates", type, JsonConvert.SerializeObject(obj)).Task;
+            string? response = await requestSender!.request("buildplates", type, JsonConvert.SerializeObject(obj)).Task;
 
             if (response == null)
             {
@@ -1009,16 +1008,12 @@ public class Instance
         }
     }
 
-    private record BuildplateLoadRequest(
+    private sealed record BuildplateLoadRequest(
         string playerId,
         string buildplateId
-    )
-    {
-    }
+    );
 
-    private record BuildplateLoadResponse(
+    private sealed record BuildplateLoadResponse(
         string serverDataBase64
-    )
-    {
-    }
+    );
 }

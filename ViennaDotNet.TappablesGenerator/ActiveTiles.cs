@@ -97,17 +97,13 @@ public class ActiveTiles
         int tileY,
         long firstActiveTime,
         long latestActiveTime
-    )
-    {
-    }
+    );
 
-    record ActiveTileNotification(
+    private sealed record ActiveTileNotification(
         int x,
         int y,
         string playerId
-    )
-    {
-    }
+    );
 
     public interface IActiveTileListener
     {

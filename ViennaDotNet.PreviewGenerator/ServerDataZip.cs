@@ -4,7 +4,7 @@ using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.PreviewGenerator;
 
-internal class ServerDataZip
+internal sealed class ServerDataZip
 {
     public static ServerDataZip Read(Stream inputStream)
     {

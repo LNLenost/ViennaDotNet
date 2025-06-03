@@ -24,7 +24,8 @@ public static class TimeFormatter
     }
     public static string FormatDuration(TimeSpan timeSpan)
     {
-        return string.Format(JSON_DURATION_FORMAT, (int)timeSpan.TotalHours, timeSpan.Minutes, timeSpan.Seconds);
+        return $"{(int)timeSpan.TotalHours}:{timeSpan.Minutes:D2}:{timeSpan.Seconds:D2}";
+        //return string.Format(JSON_DURATION_FORMAT, (int)timeSpan.TotalHours, timeSpan.Minutes, timeSpan.Seconds);
     }
 
     public static long ParseDuration(string duration)

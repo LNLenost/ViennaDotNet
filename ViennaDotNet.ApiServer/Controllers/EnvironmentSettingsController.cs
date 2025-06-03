@@ -12,7 +12,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Route("1/api/v{version:apiVersion}")]
 public class EnvironmentSettingsController : ControllerBase
 {
-    [Route("features")]
+    [HttpGet("features")]
     public IActionResult Features()
     {
         EarthApiResponse resp = new EarthApiResponse(new JObject(
@@ -60,7 +60,7 @@ public class EnvironmentSettingsController : ControllerBase
         return Content(sResp, "application/json");
     }
 
-    [Route("settings")]
+    [HttpGet("settings")]
     public IActionResult Settings()
     {
         JObject resp = new JObject(

@@ -49,13 +49,9 @@ public sealed class Catalog
         }
     }
 
-    record RecipesCatalogFile(RecipesCatalog result)
-    {
-    }
-    record JournalCatalogFile(JournalCatalog result)
-    {
-    }
-    record NFCBoostsCatalogFile(NFCBoost[] result)
-    {
-    }
+    private sealed record RecipesCatalogFile(RecipesCatalog result);
+
+    private sealed record JournalCatalogFile(JournalCatalog result);
+
+    private sealed record NFCBoostsCatalogFile(NFCBoost[] result);
 }

@@ -219,7 +219,7 @@ public static class JavaBlocks
         return new BedrockMapping(id, waterlogged, blockEntity, extraData);
     }
 
-    private class BedrockMappingFailException : Exception
+    private sealed class BedrockMappingFailException : Exception
     {
         public BedrockMappingFailException(string? message)
             : base(message)

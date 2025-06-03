@@ -1,2 +1,5 @@
 shop
 map - https://github.com/Project-Genoa/TileRenderer
+switch to System.Text.Json
+Get rid of LinkedList
+Get rid of .ForEach

@@ -19,7 +19,7 @@ public class JournalController : ControllerBase
     private static EarthDB earthDB => Program.DB;
 
     [HttpGet]
-    public IActionResult Get()
+    public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -29,10 +29,11 @@ public class JournalController : ControllerBase
         ActivityLog activityLogModel;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("journal", playerId, typeof(Journal))
                 .Get("activityLog", playerId, typeof(ActivityLog))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
+
             journalModel = (Journal)results.Get("journal").Value;
             activityLogModel = (ActivityLog)results.Get("activityLog").Value;
         }

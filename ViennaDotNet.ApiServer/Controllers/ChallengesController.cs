@@ -14,7 +14,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Route("1/api/v{version:apiVersion}/player/challenges")]
 public class ChallengesController : ControllerBase
 {
-    record Challenge(
+    private sealed record Challenge(
         string referenceId,
         string? parentId,
         string groupId,
@@ -33,9 +33,8 @@ public class ChallengesController : ControllerBase
         string prerequisiteLogicalCondition,
         Rewards rewards,
         object clientProperties
-    )
-    {
-    }
+    );
+
     [HttpGet]
     public IActionResult Get()
     {

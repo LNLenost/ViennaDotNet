@@ -10,18 +10,20 @@ using ViennaDotNet.Common.Utils;
 namespace ViennaDotNet.ApiServer.Controllers;
 
 [ApiVersion("1.1")]
-public class SigninController : ControllerBase
+public partial class SigninController : ControllerBase
 {
-    [Route("api/v{version:apiVersion}/player/profile/{profileID}")]
-    [HttpPost]
-    public async Task<IActionResult> Post(string profileID)
+    [GeneratedRegex("^[0-9A-F]{16}$")]
+    private static partial Regex GetUserIdRegex();
+
+    [HttpPost("api/v{version:apiVersion}/player/profile/{profileID}")]
+    public async Task<IActionResult> Post(string profileID, CancellationToken cancellationToken)
     {
         if (profileID != "signin")
         {
             return BadRequest();
         }
 
-        SigninRequest? signinRequest = await Request.Body.AsJson<SigninRequest>();
+        SigninRequest? signinRequest = await Request.Body.AsJsonAsync<SigninRequest>(cancellationToken);
 
         string[]? parts = null;
         if (signinRequest is null || (parts = signinRequest.sessionTicket.Split('-')).Length < 2)
@@ -31,8 +33,7 @@ public class SigninController : ControllerBase
         }
 
         string userId = parts[0];
-        Regex regex = new Regex("^[0-9A-F]{16}$");
-        if (!regex.IsMatch(userId))
+        if (!GetUserIdRegex().IsMatch(userId))
         {
             Log.Error($"User id not match ({userId})");
             return BadRequest();
@@ -47,16 +48,15 @@ public class SigninController : ControllerBase
             new JProperty("authenticationToken", token),
             new JProperty("basePath", "/1"),
             new JProperty("clientProperties", new JObject()),
-            new JProperty("mixedReality", null),
-            new JProperty("mrToken", null),
-            new JProperty("streams", null),
+            new JProperty("mixedReality", null!),
+            new JProperty("mrToken", null!),
+            new JProperty("streams", null!),
             new JProperty("tokens", new JObject()),
             new JProperty("updates", new JObject()))
         ));
+
         return Content(str, "application/json");
     }
 
-    record SigninRequest(string sessionTicket)
-    {
-    }
+    private sealed record SigninRequest(string sessionTicket);
 }

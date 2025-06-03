@@ -13,25 +13,25 @@ public class CatalogController : ControllerBase
 {
     private static Catalog catalog => Program.Catalog;
 
-    [Route("inventory/catalogv3")]
+    [HttpGet("inventory/catalogv3")]
     public IActionResult GetItemsCatalog()
     {
         return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.itemsCatalog)), "application/json");
     }
 
-    [Route("recipes")]
+    [HttpGet("recipes")]
     public IActionResult GetRecipeCatalog()
     {
         return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.recipesCatalog)), "application/json");
     }
 
-    [Route("journal/catalog")]
+    [HttpGet("journal/catalog")]
     public IActionResult GetJournalCatalog()
     {
         return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.journalCatalog)), "application/json");
     }
 
-    [Route("products/catalog")]
+    [HttpGet("products/catalog")]
     public IActionResult GetNFCBoostsCatalog()
     {
         return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.nfcBoostsCatalog)), "application/json");

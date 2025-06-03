@@ -24,9 +24,8 @@ public class BuildplatesController : ControllerBase
     private static ObjectStoreClient objectStoreClient => Program.objectStore;
     private static BuildplateInstancesManager buildplateInstancesManager => Program.buildplateInstancesManager;
 
-    [HttpGet]
-    [Route("buildplates")]
-    public async Task<IActionResult> GetBuildplates()
+    [HttpGet("buildplates")]
+    public async Task<IActionResult> GetBuildplates(CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -35,9 +34,9 @@ public class BuildplatesController : ControllerBase
         Buildplates buildplatesModel;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("buildplates", playerId, typeof(Buildplates))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             buildplatesModel = (Buildplates)results.Get("buildplates").Value;
         }
         catch (EarthDB.DatabaseException ex)
@@ -82,9 +81,8 @@ public class BuildplatesController : ControllerBase
         return Content(resp, "application/json");
     }
 
-    [HttpPost]
-    [Route("multiplayer/buildplate/{buildplateId}/instances")]
-    public async Task<IActionResult> CreateInstance(string buildplateId)
+    [HttpPost("multiplayer/buildplate/{buildplateId}/instances")]
+    public async Task<IActionResult> CreateInstance(string buildplateId, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -93,9 +91,9 @@ public class BuildplatesController : ControllerBase
         Buildplates.Buildplate? buildplate;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                 .Get("buildplates", playerId, typeof(Buildplates))
-                .Execute(earthDB);
+                .ExecuteAsync(earthDB, cancellationToken);
             buildplate = ((Buildplates)results.Get("buildplates").Value).getBuildplate(buildplateId);
         }
         catch (EarthDB.DatabaseException ex)
@@ -123,9 +121,8 @@ public class BuildplatesController : ControllerBase
     }
 
     // TODO: should we restrict this to matching player ID?
-    [HttpGet]
-    [Route("multiplayer/partitions/{partitionId}/instances/{instanceId}")]
-    public async Task<IActionResult> GetInstanceStatus(string partitionId, string instanceId)
+    [HttpGet("multiplayer/partitions/{partitionId}/instances/{instanceId}")]
+    public async Task<IActionResult> GetInstanceStatus(string partitionId, string instanceId, CancellationToken cancellationToken)
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
@@ -138,9 +135,9 @@ public class BuildplatesController : ControllerBase
         Buildplates.Buildplate? buildplate;
         try
         {
-            EarthDB.Results results = new EarthDB.Query(false)
+            EarthDB.Results results = await new EarthDB.Query(false)
                     .Get("buildplates", playerId, typeof(Buildplates))
-                    .Execute(earthDB);
+                    .ExecuteAsync(earthDB, cancellationToken);
             buildplate = ((Buildplates)results.Get("buildplates").Value).getBuildplate(instanceInfo.buildplateId);
         }
         catch (EarthDB.DatabaseException ex)
@@ -165,14 +162,7 @@ public class BuildplatesController : ControllerBase
 
             if (!instanceInfo1.ready)
             {
-                try
-                {
-                    Thread.Sleep(1000);
-                }
-                catch (ThreadInterruptedException)
-                {
-                    continue;
-                }
+                await Task.Delay(1000, cancellationToken);
 
                 waitCount++;
             }
