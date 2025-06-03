@@ -1,8 +1,7 @@
-﻿namespace ViennaDotNet.Buildplate.Connector.Model
+﻿namespace ViennaDotNet.Buildplate.Connector.Model;
+
+public record WorldSavedMessage(
+    string dataBase64
+)
 {
-    public record WorldSavedMessage(
-        string dataBase64
-    )
-    {
-    }
 }

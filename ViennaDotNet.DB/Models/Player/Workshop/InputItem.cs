@@ -1,12 +1,11 @@
 ﻿using ViennaDotNet.DB.Models.Common;
 
-namespace ViennaDotNet.DB.Models.Player.Workshop
+namespace ViennaDotNet.DB.Models.Player.Workshop;
+
+public record InputItem(
+     string id,
+     int count,
+     NonStackableItemInstance[] instances
+)
 {
-    public record InputItem(
-         string id,
-         int count,
-         NonStackableItemInstance[] instances
-    )
-    {
-    }
 }

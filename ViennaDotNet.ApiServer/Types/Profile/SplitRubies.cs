@@ -1,9 +1,8 @@
-﻿namespace ViennaDotNet.ApiServer.Types.Profile
+﻿namespace ViennaDotNet.ApiServer.Types.Profile;
+
+public record SplitRubies(
+    int purchased,
+    int earned
+)
 {
-    public record SplitRubies(
-        int purchased,
-        int earned
-    )
-    {
-    }
 }

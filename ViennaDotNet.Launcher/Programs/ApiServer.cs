@@ -1,88 +1,87 @@
 ﻿using Serilog;
 using System.Diagnostics;
 
-namespace ViennaDotNet.Launcher.Programs
+namespace ViennaDotNet.Launcher.Programs;
+
+internal static class ApiServer
 {
-    internal static class ApiServer
+    public const string DirName = "ApiServer";
+    public const string ExeName = "ApiServer.exe";
+    public const string DispName = "Api server";
+
+    public static bool Check()
     {
-        public const string DirName = "ApiServer";
-        public const string ExeName = "ApiServer.exe";
-        public const string DispName = "Api server";
-        
-        public static bool Check()
+        string exePath = Path.GetFullPath(Path.Combine(DirName, ExeName));
+        if (!File.Exists(exePath))
         {
-            string exePath = Path.GetFullPath(Path.Combine(DirName, ExeName));
-            if (!File.Exists(exePath))
+            Log.Error($"{DispName} exe doesn't exits: {exePath}");
+            return false;
+        }
+
+        // check for some of the catalog files and dirs
+        string[] catalogFiles =
+        [
+            "journalCatalog.json",
+            "productCatalog.json",
+            "recipes.json",
+        ];
+        foreach (string fileName in catalogFiles)
+        {
+            string path = Path.GetFullPath(Path.Combine(DirName, "data", "catalog", fileName));
+            if (!File.Exists(path))
             {
-                Log.Error($"{DispName} exe doesn't exits: {exePath}");
+                Log.Error($"Catalog file \"{Path.GetFileNameWithoutExtension(path)}\" doesn't exits: {path}");
                 return false;
             }
+        }
 
-            // check for some of the catalog files and dirs
-            string[] catalogFiles = new string[]
+        string[] catalogDirs =
+        [
+            "efficiency_categories",
+            "items",
+        ];
+        foreach (string dirName in catalogDirs)
+        {
+            string path = Path.GetFullPath(Path.Combine(ApiServer.DirName, "data", "catalog", dirName));
+            if (!Directory.Exists(path))
             {
-                "journalCatalog.json",
-                "productCatalog.json",
-                "recipes.json",
-            };
-            foreach (var fileName in catalogFiles)
-            {
-                string path = Path.GetFullPath(Path.Combine(DirName, "data", "catalog", fileName));
-                if (!File.Exists(path))
-                {
-                    Log.Error($"Catalog file \"{Path.GetFileNameWithoutExtension(path)}\" doesn't exits: {path}");
-                    return false;
-                }
+                Log.Error($"Directory \"{Path.GetFileName(path)}\" doesn't exits: {path}");
+                return false;
             }
+        }
 
-            string[] catalogDirs = new string[]
-            {
-                "efficiency_categories",
-                "items",
-            };
-            foreach (var dirName in catalogDirs)
-            {
-                string path = Path.GetFullPath(Path.Combine(ApiServer.DirName, "data", "catalog", dirName));
-                if (!Directory.Exists(path))
-                {
-                    Log.Error($"Directory \"{Path.GetFileName(path)}\" doesn't exits: {path}");
-                    return false;
-                }
-            }
+        string resourcePack = Path.GetFullPath(Path.Combine(DirName, "data", "resourcepacks", "vanilla.zip"));
+        if (!File.Exists(resourcePack))
+        {
+            Console.WriteLine($"Resourcepack wasn't found: {resourcePack}");
+            Console.WriteLine("Download it from https://cdn.mceserv.net/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35 (using internet archive)");
+            Console.WriteLine($"Rename it to vanilla.zip and move it to: {DirName}/data/resourcepacks");
+            U.ConfirmType("done");
 
-            string resourcePack = Path.GetFullPath(Path.Combine(DirName, "data", "resourcepacks", "vanilla.zip"));
             if (!File.Exists(resourcePack))
             {
-                Console.WriteLine($"Resourcepack wasn't found: {resourcePack}");
-                Console.WriteLine("Download it from https://cdn.mceserv.net/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35 (using internet archive)");
-                Console.WriteLine($"Rename it to vanilla.zip and move it to: {DirName}/data/resourcepacks");
-                U.ConfirmType("done");
-
-                if (!File.Exists(resourcePack))
-                {
-                    Log.Error($"Resourcepack doesn't exist: {resourcePack}");
-                    return false;
-                }
+                Log.Error($"Resourcepack doesn't exist: {resourcePack}");
+                return false;
             }
-
-            return true;
         }
 
-        public static void Run(Settings settings)
+        return true;
+    }
+
+    public static void Run(Settings settings)
+    {
+        Log.Information($"Running {DispName}");
+        Process.Start(new ProcessStartInfo(Path.GetFullPath(Path.Combine(DirName, ExeName)), new string[]
         {
-            Log.Information($"Running {DispName}");
-            Process.Start(new ProcessStartInfo(Path.GetFullPath(Path.Combine(DirName, ExeName)), new string[]
-            {
-                $"--port={settings.ApiPort}",
-                $"--db={settings.DatabaseConnectionString}",
-                $"--eventbus=localhost:{settings.EventBusPort}",
-                $"--objectstore=localhost:{settings.ObjectStorePort}"
-            })
-            {
-                WorkingDirectory = Path.Combine(Environment.CurrentDirectory, DirName),
-                CreateNoWindow = false,
-                UseShellExecute = true
-            });
-        }
+            $"--port={settings.ApiPort}",
+            $"--db={settings.DatabaseConnectionString}",
+            $"--eventbus=localhost:{settings.EventBusPort}",
+            $"--objectstore=localhost:{settings.ObjectStorePort}"
+        })
+        {
+            WorkingDirectory = Path.Combine(Environment.CurrentDirectory, DirName),
+            CreateNoWindow = false,
+            UseShellExecute = true
+        });
     }
 }

@@ -1,57 +1,56 @@
 ﻿using Newtonsoft.Json;
 
-namespace ViennaDotNet.DB.Models.Player
+namespace ViennaDotNet.DB.Models.Player;
+
+[JsonObject(MemberSerialization.OptIn)]
+public sealed class Hotbar
 {
-    [JsonObject(MemberSerialization.OptIn)]
-    public sealed class Hotbar
+    [JsonProperty]
+    public Item?[] items;
+
+    public Hotbar()
     {
-        [JsonProperty]
-        public Item?[] items;
+        items = new Item[7];
+    }
 
-        public Hotbar()
+    public void limitToInventory(Inventory inventory)
+    {
+        for (int index = 0; index < items.Length; index++)
         {
-            items = new Item[7];
-        }
+            Item? item = items[index];
+            if (item is null)
+                continue;
 
-        public void limitToInventory(Inventory inventory)
-        {
-            for (int index = 0; index < items.Length; index++)
+            if (item.instanceId != null)
             {
-                Item? item = items[index];
-                if (item is null)
+                if (inventory.getItemInstance(item.uuid, item.instanceId) != null)
                     continue;
-
-                if (item.instanceId != null)
+                else
+                    item = null;
+            }
+            else
+            {
+                int inventoryCount = inventory.getItemCount(item.uuid);
+                if (inventoryCount > 0)
                 {
-                    if (inventory.getItemInstance(item.uuid, item.instanceId) != null)
-                        continue;
+                    if (inventoryCount < item.count)
+                        item = new Item(item.uuid, inventoryCount, null);
                     else
-                        item = null;
+                        continue;
                 }
                 else
-                {
-                    int inventoryCount = inventory.getItemCount(item.uuid);
-                    if (inventoryCount > 0)
-                    {
-                        if (inventoryCount < item.count)
-                            item = new Item(item.uuid, inventoryCount, null);
-                        else
-                            continue;
-                    }
-                    else
-                        item = null;
-                }
-
-                items[index] = item;
+                    item = null;
             }
-        }
 
-        public record Item(
-            string uuid,
-            int count,
-            string? instanceId
-        )
-        {
+            items[index] = item;
         }
+    }
+
+    public record Item(
+        string uuid,
+        int count,
+        string? instanceId
+    )
+    {
     }
 }

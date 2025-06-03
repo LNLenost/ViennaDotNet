@@ -1,142 +1,142 @@
 ﻿using System.Text.RegularExpressions;
 using ViennaDotNet.Common.Utils;
 
-namespace ViennaDotNet.EventBus.Client
+namespace ViennaDotNet.EventBus.Client;
+
+public sealed class Publisher
 {
-    public sealed class Publisher
+    private readonly EventBusClient client;
+    private readonly int channelId;
+
+    private readonly object lockObj = new object();
+
+    private bool _closed = false;
+
+    private readonly LinkedList<string> queuedEvents = new();
+    private readonly LinkedList<TaskCompletionSource<bool>> queuedEventResults = new();
+    private TaskCompletionSource<bool>? currentPendingEventResult = null;
+
+    internal Publisher(EventBusClient client, int channelId)
     {
-        private readonly EventBusClient client;
-        private readonly int channelId;
+        this.client = client;
+        this.channelId = channelId;
+    }
 
-        private readonly object lockObj = new object();
+    public void close()
+    {
+        client.removePublisher(channelId);
+        client.sendMessage(channelId, "CLOSE");
+        closed();
+    }
 
-        private bool _closed = false;
+    public Task<bool> publish(string queueName, string type, string data)
+    {
+        if (!validateQueueName(queueName))
+            throw new ArgumentException("Queue name contains invalid characters", nameof(queueName));
 
-        private readonly LinkedList<string> queuedEvents = new();
-        private readonly LinkedList<TaskCompletionSource<bool>> queuedEventResults = new();
-        private TaskCompletionSource<bool>? currentPendingEventResult = null;
+        if (!validateType(type))
+            throw new ArgumentException("Type contains invalid characters", nameof(type));
 
-        internal Publisher(EventBusClient client, int channelId)
+        if (!validateData(data))
+            throw new ArgumentException("Data contains invalid characters", nameof(data));
+
+        string eventMessage = "SEND " + queueName + ":" + type + ":" + data;
+
+        TaskCompletionSource<bool> completableFuture = new TaskCompletionSource<bool>();
+
+        lock (lockObj)
         {
-            this.client = client;
-            this.channelId = channelId;
-        }
-
-        public void close()
-        {
-            client.removePublisher(channelId);
-            client.sendMessage(channelId, "CLOSE");
-            closed();
-        }
-
-        public Task<bool> publish(string queueName, string type, string data)
-        {
-            if (!validateQueueName(queueName))
-                throw new ArgumentException("Queue name contains invalid characters", nameof(queueName));
-
-            if (!validateType(type))
-                throw new ArgumentException("Type contains invalid characters", nameof(type));
-
-            if (!validateData(data))
-                throw new ArgumentException("Data contains invalid characters", nameof(data));
-
-            string eventMessage = "SEND " + queueName + ":" + type + ":" + data;
-
-            TaskCompletionSource<bool> completableFuture = new TaskCompletionSource<bool>();
-
-            lock (lockObj)
-            {
-                if (_closed)
-                    completableFuture.SetResult(false);
-                else
-                {
-                    queuedEvents.AddLast(eventMessage);
-                    queuedEventResults.AddLast(completableFuture);
-                    if (currentPendingEventResult == null)
-                        sendNextEvent();
-                }
-            }
-
-            return completableFuture.Task;
-        }
-
-        internal bool handleMessage(string message)
-        {
-            if (message == "ACK")
-            {
-                lock (lockObj)
-                {
-                    if (currentPendingEventResult != null)
-                    {
-                        currentPendingEventResult.SetResult(true);
-                        currentPendingEventResult = null;
-                        if (!queuedEvents.IsEmpty())
-                            sendNextEvent();
-
-                        return true;
-                    }
-                    else
-                        return false;
-                }
-            }
-            else if (message == "ERR")
-            {
-                close();
-                return true;
-            }
+            if (_closed)
+                completableFuture.SetResult(false);
             else
-                return false;
+            {
+                queuedEvents.AddLast(eventMessage);
+                queuedEventResults.AddLast(completableFuture);
+                if (currentPendingEventResult == null)
+                    sendNextEvent();
+            }
         }
 
-        private void sendNextEvent()
-        {
-            string message = queuedEvents.First!.Value;
-            queuedEvents.RemoveFirst();
-            client.sendMessage(channelId, message);
-            currentPendingEventResult = queuedEventResults.First!.Value;
-            queuedEventResults.RemoveFirst();
-        }
+        return completableFuture.Task;
+    }
 
-        internal void closed()
+    internal bool handleMessage(string message)
+    {
+        if (message == "ACK")
         {
             lock (lockObj)
             {
-                _closed = true;
-
                 if (currentPendingEventResult != null)
                 {
-                    currentPendingEventResult.SetResult(false);
+                    currentPendingEventResult.SetResult(true);
                     currentPendingEventResult = null;
+                    if (!queuedEvents.IsEmpty())
+                        sendNextEvent();
+
+                    return true;
                 }
-                queuedEventResults.ForEach(completableFuture => completableFuture.SetResult(false));
-                queuedEventResults.Clear();
-                queuedEvents.Clear();
+                else
+                    return false;
             }
         }
-
-        private static bool validateQueueName(string queueName)
+        else if (message == "ERR")
         {
-            if (string.IsNullOrWhiteSpace(queueName) || queueName.Length == 0 || Regex.IsMatch(queueName, "[^A-Za-z0-9_\\-]") || Regex.IsMatch(queueName, "^[^A-Za-z0-9]"))
+            close();
+            return true;
+        }
+        else
+            return false;
+    }
+
+    private void sendNextEvent()
+    {
+        string message = queuedEvents.First!.Value;
+        queuedEvents.RemoveFirst();
+        client.sendMessage(channelId, message);
+        currentPendingEventResult = queuedEventResults.First!.Value;
+        queuedEventResults.RemoveFirst();
+    }
+
+    internal void closed()
+    {
+        lock (lockObj)
+        {
+            _closed = true;
+
+            if (currentPendingEventResult != null)
+            {
+                currentPendingEventResult.SetResult(false);
+                currentPendingEventResult = null;
+            }
+
+            queuedEventResults.ForEach(completableFuture => completableFuture.SetResult(false));
+            queuedEventResults.Clear();
+            queuedEvents.Clear();
+        }
+    }
+
+    private static bool validateQueueName(string queueName)
+    {
+        if (string.IsNullOrWhiteSpace(queueName) || queueName.Length == 0 || Regex.IsMatch(queueName, "[^A-Za-z0-9_\\-]") || Regex.IsMatch(queueName, "^[^A-Za-z0-9]"))
+            return false;
+
+        return true;
+    }
+
+    private static bool validateType(string type)
+    {
+        if (string.IsNullOrWhiteSpace(type) || type.Length == 0 || Regex.IsMatch(type, "[^A-Za-z0-9_\\-]") || Regex.IsMatch(type, "^[^A-Za-z0-9]"))
+            return false;
+
+        return true;
+    }
+
+    private static bool validateData(string str)
+    {
+        for (int i = 0; i < str.Length; i++)
+            if (str[i] < 32 || str[i] >= 127)
                 return false;
 
-            return true;
-        }
-
-        private static bool validateType(string type)
-        {
-            if (string.IsNullOrWhiteSpace(type) || type.Length == 0 || Regex.IsMatch(type, "[^A-Za-z0-9_\\-]") || Regex.IsMatch(type, "^[^A-Za-z0-9]"))
-                return false;
-
-            return true;
-        }
-
-        private static bool validateData(string str)
-        {
-            for (int i = 0; i < str.Length; i++)
-                if (str[i] < 32 || str[i] >= 127)
-                    return false;
-
-            return true;
-        }
+        return true;
     }
 }

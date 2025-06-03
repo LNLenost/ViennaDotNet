@@ -2,52 +2,51 @@
 using Serilog;
 using System.Text;
 
-namespace ViennaDotNet.Buildplate.Launcher
+namespace ViennaDotNet.Buildplate.Launcher;
+
+public sealed class PreviewGenerator
 {
-    public sealed class PreviewGenerator
+    private readonly string javaCmd;
+    private readonly FileInfo fountainJar;
+
+    public PreviewGenerator(string javaCmd, string fountainJar)
     {
-        private readonly string javaCmd;
-        private readonly FileInfo fountainJar;
+        this.javaCmd = javaCmd;
+        this.fountainJar = new FileInfo(fountainJar);
+    }
 
-        public PreviewGenerator(string javaCmd, string fountainJar)
+    public string? generatePreview(byte[] serverData, bool isNight)
+    {
+        string previewString;
+        try
         {
-            this.javaCmd = javaCmd;
-            this.fountainJar = new FileInfo(fountainJar);
+            using (MemoryStream ms = new MemoryStream(serverData))
+                previewString = ViennaDotNet.PreviewGenerator.Generator.Generate(ms);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error while generating buildplate preview: {ex}");
+            return null;
         }
 
-        public string? generatePreview(byte[] serverData, bool isNight)
+        Dictionary<string, object> previewObject;
+        try
         {
-            string previewString;
-            try
-            {
-                using (MemoryStream ms = new MemoryStream(serverData))
-                    previewString = ViennaDotNet.PreviewGenerator.Generator.Generate(ms);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error while generating buildplate preview: {ex}");
-                return null;
-            }
-
-            Dictionary<string, object> previewObject;
-            try
-            {
-                previewObject = JsonConvert.DeserializeObject<Dictionary<string, object>>(previewString)!;
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error while processing buildplate preview generator response: {ex}");
-                return null;
-            }
-
-            previewObject["isNight"] = isNight;
-
-            string previewJson = JsonConvert.SerializeObject(previewObject);
-
-            string previewBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(previewJson));
-
-            Log.Information("Preview generated");
-            return previewBase64;
+            previewObject = JsonConvert.DeserializeObject<Dictionary<string, object>>(previewString)!;
         }
+        catch (Exception ex)
+        {
+            Log.Error($"Error while processing buildplate preview generator response: {ex}");
+            return null;
+        }
+
+        previewObject["isNight"] = isNight;
+
+        string previewJson = JsonConvert.SerializeObject(previewObject);
+
+        string previewBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(previewJson));
+
+        Log.Information("Preview generated");
+        return previewBase64;
     }
 }

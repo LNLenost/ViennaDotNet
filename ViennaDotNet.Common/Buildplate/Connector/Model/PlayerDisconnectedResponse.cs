@@ -1,8 +1,7 @@
-﻿namespace ViennaDotNet.Buildplate.Connector.Model
+﻿namespace ViennaDotNet.Buildplate.Connector.Model;
+
+public record PlayerDisconnectedResponse(
+// TODO
+)
 {
-    public record PlayerDisconnectedResponse(
-    // TODO
-    )
-    {
-    }
 }

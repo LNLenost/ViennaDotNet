@@ -1,11 +1,10 @@
-﻿namespace ViennaDotNet.Buildplate.Connector.Model
+﻿namespace ViennaDotNet.Buildplate.Connector.Model;
+
+public record InventoryRemoveItemRequest(
+     string playerId,
+     string itemId,
+     int count,
+     string? instanceId
+)
 {
-    public record InventoryRemoveItemRequest(
-         string playerId,
-         string itemId,
-         int count,
-         string? instanceId
-    )
-    {
-    }
 }

@@ -1,9 +1,8 @@
-﻿namespace ViennaDotNet.ApiServer.Types.Workshop
+﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
+
+public record OutputItem(
+    string itemId,
+    int quantity
+)
 {
-    public record OutputItem(
-        string itemId,
-        int quantity
-    )
-    {
-    }
 }

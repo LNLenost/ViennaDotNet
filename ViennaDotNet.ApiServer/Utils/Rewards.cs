@@ -5,188 +5,190 @@ using ViennaDotNet.DB.Models.Common;
 using ViennaDotNet.DB.Models.Player;
 using static ViennaDotNet.DB.Models.Player.Tokens;
 
-namespace ViennaDotNet.ApiServer.Utils
+namespace ViennaDotNet.ApiServer.Utils;
+
+public sealed class Rewards
 {
-    public sealed class Rewards
+    private int rubies;
+    private int experiencePoints;
+
+    private int? level;
+    private Dictionary<string, int?> items = [];
+    private HashSet<string> buildplates = [];
+    private HashSet<string> challenges = [];
+
+    public Rewards()
     {
-        private int rubies;
-        private int experiencePoints;
+        // empty
+    }
 
-        private int? level;
-        private Dictionary<string, int?> items = new();
-        private HashSet<string> buildplates = new();
-        private HashSet<string> challenges = new();
+    public Rewards setLevel(int level)
+    {
+        this.level = level;
+        return this;
+    }
 
-        public Rewards()
+    public Rewards addItem(string id, int count)
+    {
+        items[id] = items.GetOrDefault(id, 0) + count;
+        return this;
+    }
+
+    public Rewards addBuildplate(string id)
+    {
+        buildplates.Add(id);
+        return this;
+    }
+
+    public Rewards addChallenge(string id)
+    {
+        challenges.Add(id);
+        return this;
+    }
+
+    public Rewards addRubies(int rubies)
+    {
+        this.rubies += rubies;
+        return this;
+    }
+
+    public Rewards addExperiencePoints(int experiencePoints)
+    {
+        this.experiencePoints += experiencePoints;
+        return this;
+    }
+
+    public EarthDB.Query toRedeemQuery(string playerId, long currentTime, Catalog catalog)
+    {
+        EarthDB.Query getQuery = new EarthDB.Query(true);
+        if (rubies > 0 || experiencePoints > 0)
+            getQuery.Get("profile", playerId, typeof(Profile));
+
+        if (!items.IsEmpty())
         {
-            // empty
+            getQuery.Get("inventory", playerId, typeof(Inventory));
+            getQuery.Get("journal", playerId, typeof(Journal));
         }
 
-        public Rewards setLevel(int level)
+        if (!buildplates.IsEmpty())
         {
-            this.level = level;
-            return this;
+            // TODO
         }
 
-        public Rewards addItem(string id, int count)
+        if (!challenges.IsEmpty())
         {
-            items[id] = items.GetOrDefault(id, 0) + count;
-            return this;
+            // TODO
         }
 
-        public Rewards addBuildplate(string id)
+        EarthDB.Query updateQuery = new EarthDB.Query(true);
+        getQuery.Then(results =>
         {
-            buildplates.Add(id);
-            return this;
-        }
-
-        public Rewards addChallenge(string id)
-        {
-            challenges.Add(id);
-            return this;
-        }
-
-        public Rewards addRubies(int rubies)
-        {
-            this.rubies += rubies;
-            return this;
-        }
-
-        public Rewards addExperiencePoints(int experiencePoints)
-        {
-            this.experiencePoints += experiencePoints;
-            return this;
-        }
-
-        public EarthDB.Query toRedeemQuery(string playerId, long currentTime, Catalog catalog)
-        {
-            EarthDB.Query getQuery = new EarthDB.Query(true);
+            bool checkLevelUp = false;
             if (rubies > 0 || experiencePoints > 0)
-                getQuery.Get("profile", playerId, typeof(Profile));
+            {
+                Profile profile = (Profile)results.Get("profile").Value;
+                if (rubies > 0)
+                    profile.rubies.earned += rubies;
+
+                if (experiencePoints > 0)
+                    profile.experience += experiencePoints;
+
+                updateQuery.Update("profile", playerId, profile);
+
+                if (experiencePoints > 0)
+                    checkLevelUp = true;
+            }
 
             if (!items.IsEmpty())
             {
-                getQuery.Get("inventory", playerId, typeof(Inventory));
-                getQuery.Get("journal", playerId, typeof(Journal));
+                Inventory inventory = (Inventory)results.Get("inventory").Value;
+                Journal journal = (Journal)results.Get("journal").Value;
+                foreach (var entry in items)
+                {
+                    string id = entry.Key;
+                    int quantity = entry.Value ?? 0; // idk, no null checks here, so I added ?? 0
+                    if (quantity > 0)
+                    {
+                        ItemsCatalog.Item item = catalog.itemsCatalog.items.Where(item1 => item1.id == id).First();
+                        if (item.stacks)
+                            inventory.addItems(id, quantity);
+                        else
+                            inventory.addItems(id, Java.IntStream.Range(0, quantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0)).ToArray());
+
+                        journal.touchItem(id, currentTime);
+                        if (journal.getItem(id)!.amountCollected == 0)
+                        {
+                            updateQuery.Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.JournalItemUnlockedEntry(currentTime, id)));
+                            updateQuery.Then(TokenUtils.addToken(playerId, new JournalItemUnlockedToken(id)));
+                        }
+
+                        journal.addCollectedItem(id, quantity);
+                    }
+                }
+
+                updateQuery.Update("inventory", playerId, inventory);
+                updateQuery.Update("journal", playerId, journal);
             }
 
             if (!buildplates.IsEmpty())
             {
                 // TODO
             }
+
             if (!challenges.IsEmpty())
             {
                 // TODO
             }
 
-            EarthDB.Query updateQuery = new EarthDB.Query(true);
-            getQuery.Then(results =>
+            if (checkLevelUp)
             {
-                bool checkLevelUp = false;
-                if (rubies > 0 || experiencePoints > 0)
-                {
-                    Profile profile = (Profile)results.Get("profile").Value;
-                    if (rubies > 0)
-                        profile.rubies.earned += rubies;
+                updateQuery.Then(LevelUtils.checkAndHandlePlayerLevelUp(playerId, currentTime, catalog));
+            }
 
-                    if (experiencePoints > 0)
-                        profile.experience += experiencePoints;
+            return updateQuery;
+        });
+        getQuery.Then(new EarthDB.Query(false).Extra("rewards", this));
 
-                    updateQuery.Update("profile", playerId, profile);
+        return getQuery;
+    }
 
-                    if (experiencePoints > 0)
-                        checkLevelUp = true;
-                }
+    public Types.Common.Rewards toApiResponse()
+    {
+        return new Types.Common.Rewards(
+            rubies,
+            experiencePoints,
+            level,
+            items.Select(item => new Types.Common.Rewards.Item(item.Key, item.Value ?? 0)).ToArray(),
+            buildplates.Select(buildplate => new Types.Common.Rewards.Buildplate(buildplate)).ToArray(),
+            challenges.Select(challenge => new Types.Common.Rewards.Challenge(challenge)).ToArray(),
+            [],
+            []
+        );
+    }
 
-                if (!items.IsEmpty())
-                {
-                    Inventory inventory = (Inventory)results.Get("inventory").Value;
-                    Journal journal = (Journal)results.Get("journal").Value;
-                    foreach (var entry in items)
-                    {
-                        string id = entry.Key;
-                        int quantity = entry.Value ?? 0; // idk, no null checks here, so I added ?? 0
-                        if (quantity > 0)
-                        {
-                            ItemsCatalog.Item item = catalog.itemsCatalog.items.Where(item1 => item1.id == id).First();
-                            if (item.stacks)
-                                inventory.addItems(id, quantity);
-                            else
-                                inventory.addItems(id, Java.IntStream.Range(0, quantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0)).ToArray());
+    public static Rewards fromDBRewardsModel(DB.Models.Common.Rewards rewardsModel)
+    {
+        Rewards rewards = new Rewards();
+        rewards.addRubies(rewardsModel.rubies);
+        rewards.addExperiencePoints(rewardsModel.experiencePoints);
+        if (rewardsModel.level is not null)
+            rewards.setLevel(rewardsModel.level.Value);
 
-                            journal.touchItem(id, currentTime);
-                            if (journal.getItem(id)!.amountCollected == 0)
-                            {
-                                updateQuery.Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.JournalItemUnlockedEntry(currentTime, id)));
-                                updateQuery.Then(TokenUtils.addToken(playerId, new JournalItemUnlockedToken(id)));
-                            }
-                            journal.addCollectedItem(id, quantity);
-                        }
-                    }
-                    updateQuery.Update("inventory", playerId, inventory);
-                    updateQuery.Update("journal", playerId, journal);
-                }
+        rewardsModel.items.ForEach((id, count) => rewards.addItem(id, count ?? 0));
+        Array.ForEach(rewardsModel.buildplates, id => rewards.addBuildplate(id));
+        Array.ForEach(rewardsModel.challenges, id => rewards.addChallenge(id));
+        return rewards;
+    }
 
-                if (!buildplates.IsEmpty())
-                {
-                    // TODO
-                }
-
-                if (!challenges.IsEmpty())
-                {
-                    // TODO
-                }
-
-                if (checkLevelUp)
-                {
-                    updateQuery.Then(LevelUtils.checkAndHandlePlayerLevelUp(playerId, currentTime, catalog));
-                }
-
-                return updateQuery;
-            });
-            getQuery.Then(new EarthDB.Query(false).Extra("rewards", this));
-
-            return getQuery;
-        }
-
-        public Types.Common.Rewards toApiResponse()
-        {
-            return new Types.Common.Rewards(
-                rubies,
-                experiencePoints,
-                level,
-                items.Select(item => new Types.Common.Rewards.Item(item.Key, item.Value ?? 0)).ToArray(),
-                buildplates.Select(buildplate => new Types.Common.Rewards.Buildplate(buildplate)).ToArray(),
-                challenges.Select(challenge => new Types.Common.Rewards.Challenge(challenge)).ToArray(),
-                Array.Empty<string>(),
-                Array.Empty<Types.Common.Rewards.UtilityBlock>()
-            );
-        }
-
-        public static Rewards fromDBRewardsModel(DB.Models.Common.Rewards rewardsModel)
-        {
-            Rewards rewards = new Rewards();
-            rewards.addRubies(rewardsModel.rubies);
-            rewards.addExperiencePoints(rewardsModel.experiencePoints);
-            if (rewardsModel.level is not null)
-                rewards.setLevel(rewardsModel.level.Value);
-
-            rewardsModel.items.ForEach((id, count) => rewards.addItem(id, count ?? 0));
-            Array.ForEach(rewardsModel.buildplates, id => rewards.addBuildplate(id));
-            Array.ForEach(rewardsModel.challenges, id => rewards.addChallenge(id));
-            return rewards;
-        }
-
-        public DB.Models.Common.Rewards toDBRewardsModel()
-        {
-            return new DB.Models.Common.Rewards(
-                rubies,
-                experiencePoints,
-                level,
-                new(items),
-                buildplates.ToArray(),
-                challenges.ToArray()
-            );
-        }
+    public DB.Models.Common.Rewards toDBRewardsModel()
+    {
+        return new DB.Models.Common.Rewards(
+            rubies,
+            experiencePoints,
+            level,
+            new(items),
+            buildplates.ToArray(),
+            challenges.ToArray()
+        );
     }
 }

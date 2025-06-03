@@ -3,122 +3,123 @@ using Serilog;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.PreviewGenerator.Registry;
 
-namespace ViennaDotNet.PreviewGenerator
+namespace ViennaDotNet.PreviewGenerator;
+
+public static class Generator
 {
-    public static class Generator
+    private static readonly int CHUNK_RADIUS = 2;
+
+    public static string Generate(Stream stream)
     {
-        private static readonly int CHUNK_RADIUS = 2;
+        //try
+        //{
+        ServerDataZip serverDataZip = ServerDataZip.Read(stream);
 
-        public static string Generate(Stream stream)
+        LinkedList<Chunk> chunks = new();
+        for (int chunkX = -CHUNK_RADIUS; chunkX < CHUNK_RADIUS; chunkX++)
         {
-            //try
-            //{
-            ServerDataZip serverDataZip = ServerDataZip.Read(stream);
-
-            LinkedList<Chunk> chunks = new();
-            for (int chunkX = -CHUNK_RADIUS; chunkX < CHUNK_RADIUS; chunkX++)
+            for (int chunkZ = -CHUNK_RADIUS; chunkZ < CHUNK_RADIUS; chunkZ++)
             {
-                for (int chunkZ = -CHUNK_RADIUS; chunkZ < CHUNK_RADIUS; chunkZ++)
-                {
-                    Chunk? chunk = Chunk.read(serverDataZip.getChunkNBT(chunkX, chunkZ));
-                    if (chunk == null)
-                        Log.Error($"Could not convert chunk {chunkX}, {chunkZ}");
-                    else
-                        chunks.AddLast(chunk);
-                }
+                Chunk? chunk = Chunk.read(serverDataZip.getChunkNBT(chunkX, chunkZ));
+                if (chunk == null)
+                    Log.Error($"Could not convert chunk {chunkX}, {chunkZ}");
+                else
+                    chunks.AddLast(chunk);
             }
+        }
 
-            PreviewModel.SubChunk[] subChunks = chunks
-                .SelectMany(chunk =>
-                {
-                    return Java.IntStream.Range(0, 16)
-                            .Select(subchunkY =>
+        PreviewModel.SubChunk[] subChunks = chunks
+            .SelectMany(chunk =>
+            {
+                return Java.IntStream.Range(0, 16)
+                        .Select(subchunkY =>
+                        {
+                            Dictionary<int, int> palette = [];
+                            int[] blocks = new int[4096];
+                            for (int x = 0; x < 16; x++)
                             {
-                                Dictionary<int, int> palette = new();
-                                int[] blocks = new int[4096];
-                                for (int x = 0; x < 16; x++)
+                                for (int y = 0; y < 16; y++)
                                 {
-                                    for (int y = 0; y < 16; y++)
+                                    for (int z = 0; z < 16; z++)
                                     {
-                                        for (int z = 0; z < 16; z++)
-                                        {
-                                            int blockId = chunk.blocks[(x * 256 + (y + subchunkY * 16)) * 16 + z];
-                                            blocks[(x * 16 + y) * 16 + z] = palette.ComputeIfAbsent(blockId, blockId1 => palette.Count);
-                                        }
+                                        int blockId = chunk.blocks[(x * 256 + y + subchunkY * 16) * 16 + z];
+                                        blocks[(x * 16 + y) * 16 + z] = palette.ComputeIfAbsent(blockId, blockId1 => palette.Count);
                                     }
                                 }
-
-                                if (palette.Count == 1 && palette.ContainsKey(BedrockBlocks.AIR))
-                                    return null;
-                                else
-                                {
-                                    return new PreviewModel.SubChunk(
-                                        new PreviewModel.Position(chunk.chunkX, subchunkY, chunk.chunkZ),
-                                        palette.Keys
-                                            .Select(blockId =>
-                                                    {
-                                                        string? name = BedrockBlocks.getName(blockId);
-                                                        if (name == null)
-                                                            throw new InvalidOperationException();
-
-                                                        int data = 0;
-                                                        while (blockId - data - 1 >= 0 && name == BedrockBlocks.getName(blockId - data - 1))
-                                                            data++;
-
-                                                        return new PreviewModel.SubChunk.PaletteEntry(name, data);
-                                                    })
-                                                    .ToArray(),
-                                        blocks
-                                    );
-                                }
-                            })
-                            .Where(subChunk => subChunk != null);
-                })
-                .ToArray()!;
-
-            // block entities seem to not be used by the client when rendering the preview anyway?
-            PreviewModel.BlockEntity[] blockEntities = chunks
-                .SelectMany(chunk => chunk.blockEntities)
-                .Where(blockEntity => blockEntity != null)
-                .Select(blockEntity =>
-                {
-                    int type;
-                    switch (blockEntity!.getString("id"))
-                    {
-                        case "Bed":
-                            type = 27;
-                            break;
-                        case "PistonArm":
-                            type = 18;
-                            break;
-                        default:
-                            {
-                                Log.Warning($"No block entity type code mapping for {blockEntity.getString("id")}");
-                                type = -1;
                             }
-                            break;
-                    }
-                    return new PreviewModel.BlockEntity(
-                        type,
-                        new PreviewModel.Position(blockEntity.getInt("x"), blockEntity.getInt("y"), blockEntity.getInt("z")),
-                        JsonNbtConverter.convert(blockEntity)
-                    );
 
-                })
-                .Where(blockEntity => blockEntity.type != -1)
-                .ToArray();
+                            if (palette.Count == 1 && palette.ContainsKey(BedrockBlocks.AIR))
+                                return null;
+                            else
+                            {
+                                return new PreviewModel.SubChunk(
+                                    new PreviewModel.Position(chunk.chunkX, subchunkY, chunk.chunkZ),
+                                    palette.Keys
+                                        .Select(blockId =>
+                                                {
+                                                    string? name = BedrockBlocks.getName(blockId);
+                                                    if (name == null)
+                                                        throw new InvalidOperationException();
 
-            // TODO: entities
-            PreviewModel previewModel = new PreviewModel(
-                1,
-                false,
-                subChunks,
-                blockEntities,
-                Array.Empty<PreviewModel.Entity>()
-            );
+                                                    int data = 0;
+                                                    while (blockId - data - 1 >= 0 && name == BedrockBlocks.getName(blockId - data - 1))
+                                                        data++;
 
-            return JsonConvert.SerializeObject(previewModel);
-            //} catch (Exception ex) { }
-        }
+                                                    return new PreviewModel.SubChunk.PaletteEntry(name, data);
+                                                })
+                                                .ToArray(),
+                                    blocks
+                                );
+                            }
+                        })
+                        .Where(subChunk => subChunk != null);
+            })
+            .ToArray()!;
+
+        // block entities seem to not be used by the client when rendering the preview anyway?
+        PreviewModel.BlockEntity[] blockEntities = chunks
+            .SelectMany(chunk => chunk.blockEntities)
+            .Where(blockEntity => blockEntity != null)
+            .Select(blockEntity =>
+            {
+                int type;
+                switch (blockEntity!.getString("id"))
+                {
+                    case "Bed":
+                        type = 27;
+                        break;
+                    case "PistonArm":
+                        type = 18;
+                        break;
+                    default:
+                        {
+                            Log.Warning($"No block entity type code mapping for {blockEntity.getString("id")}");
+                            type = -1;
+                        }
+
+                        break;
+                }
+
+                return new PreviewModel.BlockEntity(
+                    type,
+                    new PreviewModel.Position(blockEntity.getInt("x"), blockEntity.getInt("y"), blockEntity.getInt("z")),
+                    JsonNbtConverter.convert(blockEntity)
+                );
+
+            })
+            .Where(blockEntity => blockEntity.type != -1)
+            .ToArray();
+
+        // TODO: entities
+        PreviewModel previewModel = new PreviewModel(
+            1,
+            false,
+            subChunks,
+            blockEntities,
+            []
+        );
+
+        return JsonConvert.SerializeObject(previewModel);
+        //} catch (Exception ex) { }
     }
 }

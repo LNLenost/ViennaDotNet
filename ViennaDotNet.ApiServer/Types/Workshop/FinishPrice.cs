@@ -1,10 +1,9 @@
-﻿namespace ViennaDotNet.ApiServer.Types.Workshop
+﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
+
+public record FinishPrice(
+    int cost,
+    int discount,
+    string validTime
+)
 {
-    public record FinishPrice(
-        int cost,
-        int discount,
-        string validTime
-    )
-    {
-    }
 }

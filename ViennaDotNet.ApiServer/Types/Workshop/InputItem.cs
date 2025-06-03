@@ -1,10 +1,9 @@
-﻿namespace ViennaDotNet.ApiServer.Types.Workshop
+﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
+
+public record InputItem(
+     string itemId,
+     int quantity,
+     string[] instanceIds
+)
 {
-    public record InputItem(
-         string itemId,
-         int quantity,
-         string[] instanceIds
-    )
-    {
-    }
 }

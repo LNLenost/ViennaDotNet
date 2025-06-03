@@ -1,107 +1,106 @@
 ﻿using Newtonsoft.Json;
 using System.Collections;
 
-namespace ViennaDotNet.PreviewGenerator.NBT
+namespace ViennaDotNet.PreviewGenerator.NBT;
+
+public class NbtList : IList
 {
-    public class NbtList : IList
+    public static readonly NbtList EMPTY = new NbtList(NbtType.END);
+
+    private readonly NbtType type;
+    private readonly Array array;
+    [JsonIgnore]
+    private bool hashCodeGenerated;
+    [JsonIgnore]
+    private int hashCode;
+
+    public bool IsFixedSize => true;
+
+    public bool IsReadOnly => true;
+
+    public int Count => array.Length;
+
+    public bool IsSynchronized => false;
+
+    public object SyncRoot => null!;
+
+    public object? this[int index] { get => get(index); set => throw new InvalidOperationException(); }
+
+    public NbtList(NbtType type, ICollection collection)
     {
-        public static readonly NbtList EMPTY = new NbtList(NbtType.END);
+        ArgumentNullException.ThrowIfNull(type, "tagClass");
+        this.type = type;
+        array = Array.CreateInstance(type.getTagClass(), collection.Count);
+        collection.CopyTo(array, 0);
+    }
 
-        private readonly NbtType type;
-        private readonly Array array;
-        [JsonIgnore]
-        private bool hashCodeGenerated;
-        [JsonIgnore]
-        private int hashCode;
+    public NbtList(NbtType tagClass, params object[] array)
+    {
+        ArgumentNullException.ThrowIfNull(type, "tagClass");
+        type = tagClass;
+        this.array = (Array)array.Clone();
+    }
 
-        public bool IsFixedSize => true;
+    public NbtType getType()
+    {
+        return type;
+    }
 
-        public bool IsReadOnly => true;
+    public object get(int index)
+    {
+        if (index < 0 || index >= array.Length)
+            throw new IndexOutOfRangeException("Expected 0-" + (array.Length - 1) + ". Got " + index);
 
-        public int Count => array.Length;
+        return NbtUtils.copy(array.GetValue(index)!);
+    }
 
-        public bool IsSynchronized => false;
+    public int size()
+    {
+        return array.Length;
+    }
 
-        public object SyncRoot => null!;
+    public int Add(object? value)
+    {
+        throw new InvalidOperationException();
+    }
 
-        public object? this[int index] { get => get(index); set => throw new InvalidOperationException(); }
+    public void Clear()
+    {
+        throw new InvalidOperationException();
+    }
 
-        public NbtList(NbtType type, ICollection collection)
-        {
-            ArgumentNullException.ThrowIfNull(type, "tagClass");
-            this.type = type;
-            array = Array.CreateInstance(type.getTagClass(), collection.Count);
-            collection.CopyTo(array, 0);
-        }
+    public bool Contains(object? value)
+    {
+        return Array.IndexOf(array, value) >= 0;
+    }
 
-        public NbtList(NbtType tagClass, params object[] array)
-        {
-            ArgumentNullException.ThrowIfNull(type, "tagClass");
-            type = tagClass;
-            this.array = (Array)array.Clone();
-        }
+    public int IndexOf(object? value)
+    {
+        return Array.IndexOf(array, value);
+    }
 
-        public NbtType getType()
-        {
-            return type;
-        }
+    public void Insert(int index, object? value)
+    {
+        throw new InvalidOperationException();
+    }
 
-        public object get(int index)
-        {
-            if (index < 0 || index >= array.Length)
-                throw new IndexOutOfRangeException("Expected 0-" + (array.Length - 1) + ". Got " + index);
+    public void Remove(object? value)
+    {
+        throw new InvalidOperationException();
+    }
 
-            return NbtUtils.copy(array.GetValue(index)!);
-        }
+    public void RemoveAt(int index)
+    {
+        throw new InvalidOperationException();
+    }
 
-        public int size()
-        {
-            return array.Length;
-        }
+    public void CopyTo(Array array, int index)
+    {
+        this.array.CopyTo(array, index);
+    }
 
-        public int Add(object? value)
-        {
-            throw new InvalidOperationException();
-        }
-
-        public void Clear()
-        {
-            throw new InvalidOperationException();
-        }
-
-        public bool Contains(object? value)
-        {
-            return Array.IndexOf(array, value) >= 0;
-        }
-
-        public int IndexOf(object? value)
-        {
-            return Array.IndexOf(array, value);
-        }
-
-        public void Insert(int index, object? value)
-        {
-            throw new InvalidOperationException();
-        }
-
-        public void Remove(object? value)
-        {
-            throw new InvalidOperationException();
-        }
-
-        public void RemoveAt(int index)
-        {
-            throw new InvalidOperationException();
-        }
-
-        public void CopyTo(Array array, int index)
-        {
-            this.array.CopyTo(array, index);
-        }
-
-        public IEnumerator GetEnumerator()
-        {
-            return array.GetEnumerator();
-        }
+    public IEnumerator GetEnumerator()
+    {
+        return array.GetEnumerator();
     }
 }

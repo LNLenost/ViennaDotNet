@@ -3,404 +3,408 @@ using System.Net.Sockets;
 using System.Text;
 using ViennaDotNet.Common.Utils;
 
-namespace ViennaDotNet.EventBus.Client
+namespace ViennaDotNet.EventBus.Client;
+
+public class EventBusClient
 {
-    public class EventBusClient
+    public static EventBusClient create(string connectionString)
     {
-        public static EventBusClient create(string connectionString)
+        string[] parts = connectionString.Split(':', 2);
+        string host = parts[0];
+        int port;
+        try
         {
-            string[] parts = connectionString.Split(':', 2);
-            string host = parts[0];
-            int port;
-            try
-            {
-                port = parts.Length > 1 ? int.Parse(parts[1]) : 5532;
-            }
-            catch (Exception)
-            {
-                throw new ArgumentException($"Invalid port number \"{parts[1]}\"", nameof(connectionString));
-            }
-
-            if (port <= 0 || port > 65535)
-                throw new ArgumentException("Port number out of range", nameof(connectionString));
-
-            Socket socket;
-            try
-            {
-                socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-                socket.Connect(host, port);
-            }
-            catch (SocketException ex)
-            {
-                throw new ConnectException("Could not create socket", ex);
-            }
-
-            return new EventBusClient(socket);
+            port = parts.Length > 1 ? int.Parse(parts[1]) : 5532;
+        }
+        catch (Exception)
+        {
+            throw new ArgumentException($"Invalid port number \"{parts[1]}\"", nameof(connectionString));
         }
 
-        public sealed class ConnectException : EventBusClientException
+        if (port <= 0 || port > 65535)
+            throw new ArgumentException("Port number out of range", nameof(connectionString));
+
+        Socket socket;
+        try
         {
-            public ConnectException(string? message)
-                : base(message)
-            {
-            }
-            public ConnectException(string? message, Exception? innerException)
-                : base(message, innerException)
-            {
-            }
+            socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            socket.Connect(host, port);
+        }
+        catch (SocketException ex)
+        {
+            throw new ConnectException("Could not create socket", ex);
         }
 
-        private Socket socket;
-        private readonly BlockingCollection<string> outgoingMessageQueue = new();
-        private Thread outgoingThread;
-        private Thread incomingThread;
-        private readonly ReaderWriterLockSlim lockObj = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+        return new EventBusClient(socket);
+    }
 
-        private bool closed = false;
-        private bool error = false;
-
-        private readonly Dictionary<int, Publisher> publishers = new();
-        private readonly Dictionary<int, Subscriber> subscribers = new();
-        private readonly Dictionary<int, RequestSender> requestSenders = new();
-        private readonly Dictionary<int, RequestHandler> requestHandlers = new();
-        private int nextChannelId = 1;
-
-        private EventBusClient(Socket socket)
+    public sealed class ConnectException : EventBusClientException
+    {
+        public ConnectException(string? message)
+            : base(message)
         {
-            this.socket = socket;
+        }
+        public ConnectException(string? message, Exception? innerException)
+            : base(message, innerException)
+        {
+        }
+    }
 
-            outgoingThread = new Thread(() =>
+    private Socket socket;
+    private readonly BlockingCollection<string> outgoingMessageQueue = [];
+    private Thread outgoingThread;
+    private Thread incomingThread;
+    private readonly ReaderWriterLockSlim lockObj = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+
+    private bool closed = false;
+    private bool error = false;
+
+    private readonly Dictionary<int, Publisher> publishers = [];
+    private readonly Dictionary<int, Subscriber> subscribers = [];
+    private readonly Dictionary<int, RequestSender> requestSenders = [];
+    private readonly Dictionary<int, RequestHandler> requestHandlers = [];
+    private int nextChannelId = 1;
+
+    private EventBusClient(Socket socket)
+    {
+        this.socket = socket;
+
+        outgoingThread = new Thread(() =>
+        {
+            int sleepCounter = 0;
+            try
             {
-                int sleepCounter = 0;
-                try
+                while (true)
                 {
-                    while (true)
+                    if (outgoingMessageQueue.Count > 0)
                     {
-                        if (outgoingMessageQueue.Count > 0)
-                        {
-                            string message = outgoingMessageQueue.Take();
-                            byte[] bytes = Encoding.ASCII.GetBytes(message);
-                            socket.Send(bytes);
-                        }
-
-                        // reduce CPU usage
-                        if (sleepCounter >= 2500)
-                        {
-                            sleepCounter = 0;
-                            Thread.Sleep(1);
-                        }
-                        else
-                            Thread.Sleep(0);
-                        sleepCounter++;
+                        string message = outgoingMessageQueue.Take();
+                        byte[] bytes = Encoding.ASCII.GetBytes(message);
+                        socket.Send(bytes);
                     }
-                }
-                catch (ThreadInterruptedException)
-                {
-                    // empty
-                }
-                catch (SocketException)
-                {
-                    lockObj.EnterWriteLock();
-                    error = true;
-                    lockObj.ExitWriteLock();
-                }
-                initiateClose();
 
-                publishers.ForEach((channelId, publisher) =>
-                {
-                    publisher.closed();
-                });
-                publishers.Clear();
-                requestSenders.ForEach((channelId, requestSender) =>
-                {
-                    requestSender.closed();
-                });
-                requestSenders.Clear();
-            });
-
-            incomingThread = new Thread(() =>
-            {
-                int sleepCounter = 0;
-                try
-                {
-                    byte[] readBuffer = new byte[1024];
-                    MemoryStream byteArrayOutputStream = new MemoryStream(1024);
-                    for (; ; )
+                    // reduce CPU usage
+                    if (sleepCounter >= 2500)
                     {
-                        int readLength = socket.Receive(readBuffer);
-                        if (readLength > 0)
-                        {
-                            int startOffset = 0;
-                            for (int offset = 0; offset < readLength; offset++)
-                            {
-                                if (readBuffer[offset] == '\n')
-                                {
-                                    byteArrayOutputStream.Write(readBuffer, startOffset, offset - startOffset);
-                                    string message = Encoding.ASCII.GetString(byteArrayOutputStream.ToArray());
-
-                                    lockObj.EnterReadLock();
-                                    bool suppress = closed || error;
-                                    lockObj.ExitReadLock();
-
-                                    if (!suppress)
-                                    {
-                                        if (!dispatchReceivedMessage(message))
-                                        {
-                                            lockObj.EnterWriteLock();
-                                            error = true;
-                                            lockObj.ExitWriteLock();
-                                            initiateClose();
-                                        }
-                                    }
-                                    byteArrayOutputStream = new MemoryStream(1024);
-                                    startOffset = offset + 1;
-                                }
-                            }
-                            byteArrayOutputStream.Write(readBuffer, startOffset, readLength - startOffset);
-                        }
-                        else if (readLength == 0)
-                            break;
-                        else
-                            throw new InvalidOperationException();
-
-                        // reduce CPU usage
-                        if (sleepCounter >= 2500)
-                        {
-                            sleepCounter = 0;
-                            Thread.Sleep(1);
-                        }
-                        else
-                            Thread.Sleep(0);
-                        sleepCounter++;
+                        sleepCounter = 0;
+                        Thread.Sleep(1);
                     }
-                }
-                catch (SocketException)
-                {
-                    lockObj.EnterWriteLock();
-                    error = true;
-                    lockObj.ExitWriteLock();
-                }
-                initiateClose();
-
-                subscribers.ForEach((channelId, subscriber) =>
-                {
-                    subscriber.error();
-                });
-                subscribers.Clear();
-
-                requestHandlers.ForEach((channelId, requestHandler) =>
-                {
-                    requestHandler.error();
-                });
-                requestHandlers.Clear();
-            });
-
-            outgoingThread.Start();
-            incomingThread.Start();
-        }
-
-        public void close()
-        {
-            initiateClose();
-
-            for (; ; )
-            {
-                try
-                {
-                    incomingThread.Join();
-                    break;
-                }
-                catch (ThreadInterruptedException)
-                {
-                    // empty
+                    else
+                        Thread.Sleep(0);
+                    sleepCounter++;
                 }
             }
-
-            for (; ; )
-            {
-                try
-                {
-                    outgoingThread.Join();
-                    break;
-                }
-                catch (ThreadInterruptedException)
-                {
-                    // empty
-                }
-            }
-        }
-
-        private void initiateClose()
-        {
-            lockObj.EnterWriteLock();
-            if (!error)
-                closed = true;
-
-            lockObj.ExitWriteLock();
-
-            try
-            {
-                socket.Shutdown(SocketShutdown.Both);
-            }
-            catch (SocketException)
+            catch (ThreadInterruptedException)
             {
                 // empty
             }
-            finally
+            catch (SocketException)
             {
-                socket.Close();
+                lockObj.EnterWriteLock();
+                error = true;
+                lockObj.ExitWriteLock();
             }
 
-            outgoingThread.Interrupt();
-        }
+            initiateClose();
 
-        public Publisher addPublisher()
-        {
-            lockObj.EnterWriteLock();
-            int channelId = getUnusedChannelId();
-            Publisher publisher = new Publisher(this, channelId);
-            if (sendMessage(channelId, "PUB"))
-                publishers[channelId] = publisher;
-            else
+            publishers.ForEach((channelId, publisher) =>
+            {
                 publisher.closed();
-
-            lockObj.ExitWriteLock();
-
-            return publisher;
-        }
-
-        public Subscriber addSubscriber(string queueName, Subscriber.ISubscriberListener listener)
-        {
-            lockObj.EnterWriteLock();
-            int channelId = getUnusedChannelId();
-            Subscriber subscriber = new Subscriber(this, channelId, queueName, listener);
-            if (sendMessage(channelId, "SUB " + queueName))
-                subscribers[channelId] = subscriber;
-            else
-                subscriber.error();
-
-            lockObj.ExitWriteLock();
-
-            return subscriber;
-        }
-
-        public RequestSender addRequestSender()
-        {
-            lockObj.EnterWriteLock();
-            int channelId = getUnusedChannelId();
-            RequestSender requestSender = new RequestSender(this, channelId);
-            if (sendMessage(channelId, "REQ"))
-                requestSenders[channelId] = requestSender;
-            else
+            });
+            publishers.Clear();
+            requestSenders.ForEach((channelId, requestSender) =>
+            {
                 requestSender.closed();
+            });
+            requestSenders.Clear();
+        });
 
-            lockObj.ExitWriteLock();
-            return requestSender;
-        }
-
-        public RequestHandler addRequestHandler(string queueName, RequestHandler.IHandler handler)
+        incomingThread = new Thread(() =>
         {
-            lockObj.EnterWriteLock();
-            int channelId = getUnusedChannelId();
-            RequestHandler requestHandler = new RequestHandler(this, channelId, queueName, handler);
-            if (sendMessage(channelId, "HND " + queueName))
-                requestHandlers[channelId] = requestHandler;
-            else
+            int sleepCounter = 0;
+            try
+            {
+                byte[] readBuffer = new byte[1024];
+                MemoryStream byteArrayOutputStream = new MemoryStream(1024);
+                for (; ; )
+                {
+                    int readLength = socket.Receive(readBuffer);
+                    if (readLength > 0)
+                    {
+                        int startOffset = 0;
+                        for (int offset = 0; offset < readLength; offset++)
+                        {
+                            if (readBuffer[offset] == '\n')
+                            {
+                                byteArrayOutputStream.Write(readBuffer, startOffset, offset - startOffset);
+                                string message = Encoding.ASCII.GetString(byteArrayOutputStream.ToArray());
+
+                                lockObj.EnterReadLock();
+                                bool suppress = closed || error;
+                                lockObj.ExitReadLock();
+
+                                if (!suppress)
+                                {
+                                    if (!dispatchReceivedMessage(message))
+                                    {
+                                        lockObj.EnterWriteLock();
+                                        error = true;
+                                        lockObj.ExitWriteLock();
+                                        initiateClose();
+                                    }
+                                }
+
+                                byteArrayOutputStream = new MemoryStream(1024);
+                                startOffset = offset + 1;
+                            }
+                        }
+
+                        byteArrayOutputStream.Write(readBuffer, startOffset, readLength - startOffset);
+                    }
+                    else if (readLength == 0)
+                        break;
+                    else
+                        throw new InvalidOperationException();
+
+                    // reduce CPU usage
+                    if (sleepCounter >= 2500)
+                    {
+                        sleepCounter = 0;
+                        Thread.Sleep(1);
+                    }
+                    else
+                        Thread.Sleep(0);
+                    sleepCounter++;
+                }
+            }
+            catch (SocketException)
+            {
+                lockObj.EnterWriteLock();
+                error = true;
+                lockObj.ExitWriteLock();
+            }
+
+            initiateClose();
+
+            subscribers.ForEach((channelId, subscriber) =>
+            {
+                subscriber.error();
+            });
+            subscribers.Clear();
+
+            requestHandlers.ForEach((channelId, requestHandler) =>
+            {
                 requestHandler.error();
+            });
+            requestHandlers.Clear();
+        });
 
-            lockObj.ExitWriteLock();
-            return requestHandler;
-        }
+        outgoingThread.Start();
+        incomingThread.Start();
+    }
 
-        internal void removePublisher(int channelId)
-        {
-            lockObj.EnterWriteLock();
-            publishers.Remove(channelId);
-            lockObj.ExitWriteLock();
-        }
+    public void close()
+    {
+        initiateClose();
 
-        internal void removeSubscriber(int channelId)
-        {
-            lockObj.EnterWriteLock();
-            subscribers.Remove(channelId);
-            lockObj.ExitWriteLock();
-        }
-
-        internal void removeRequestSender(int channelId)
-        {
-            lockObj.EnterWriteLock();
-            requestSenders.Remove(channelId);
-            lockObj.ExitWriteLock();
-        }
-
-        internal void removeRequestHandler(int channelId)
-        {
-            lockObj.EnterWriteLock();
-            requestHandlers.Remove(channelId);
-            lockObj.ExitWriteLock();
-        }
-
-        private int getUnusedChannelId()
-        {
-            return nextChannelId++;
-        }
-
-        private bool dispatchReceivedMessage(string message)
-        {
-            string[] parts = message.Split(' ', 2);
-            if (parts.Length != 2)
-                return false;
-
-            if (!int.TryParse(parts[0], out int channelId) || channelId <= 0)
-                return false;
-
-            Publisher? publisher = publishers.GetOrDefault(channelId, null);
-            if (publisher != null)
-                return publisher.handleMessage(parts[1]);
-
-            Subscriber? subscriber = subscribers.GetOrDefault(channelId, null);
-            if (subscriber != null)
-                return subscriber.handleMessage(parts[1]);
-
-            RequestSender? requestSender = requestSenders.GetOrDefault(channelId, null);
-            if (requestSender != null)
-                return requestSender.handleMessage(parts[1]);
-
-            RequestHandler? requestHandler = requestHandlers.GetOrDefault(channelId, null);
-            if (requestHandler != null)
-                return requestHandler.handleMessage(parts[1]);
-
-            return channelId < nextChannelId;
-        }
-
-        internal bool sendMessage(int channelId, string message)
+        for (; ; )
         {
             try
             {
-                lockObj.EnterReadLock();
-                if (closed || error)
-                {
-                    return false;
-                }
+                incomingThread.Join();
+                break;
             }
-            finally
+            catch (ThreadInterruptedException)
             {
-                lockObj.ExitReadLock();
+                // empty
             }
-
-            for (; ; )
-            {
-                try
-                {
-                    outgoingMessageQueue.Add(channelId + " " + message + "\n");
-                    break;
-                }
-                catch (ThreadInterruptedException)
-                {
-                    // empty
-                }
-            }
-            return true;
         }
+
+        for (; ; )
+        {
+            try
+            {
+                outgoingThread.Join();
+                break;
+            }
+            catch (ThreadInterruptedException)
+            {
+                // empty
+            }
+        }
+    }
+
+    private void initiateClose()
+    {
+        lockObj.EnterWriteLock();
+        if (!error)
+            closed = true;
+
+        lockObj.ExitWriteLock();
+
+        try
+        {
+            socket.Shutdown(SocketShutdown.Both);
+        }
+        catch (SocketException)
+        {
+            // empty
+        }
+        finally
+        {
+            socket.Close();
+        }
+
+        outgoingThread.Interrupt();
+    }
+
+    public Publisher addPublisher()
+    {
+        lockObj.EnterWriteLock();
+        int channelId = getUnusedChannelId();
+        Publisher publisher = new Publisher(this, channelId);
+        if (sendMessage(channelId, "PUB"))
+            publishers[channelId] = publisher;
+        else
+            publisher.closed();
+
+        lockObj.ExitWriteLock();
+
+        return publisher;
+    }
+
+    public Subscriber addSubscriber(string queueName, Subscriber.ISubscriberListener listener)
+    {
+        lockObj.EnterWriteLock();
+        int channelId = getUnusedChannelId();
+        Subscriber subscriber = new Subscriber(this, channelId, queueName, listener);
+        if (sendMessage(channelId, "SUB " + queueName))
+            subscribers[channelId] = subscriber;
+        else
+            subscriber.error();
+
+        lockObj.ExitWriteLock();
+
+        return subscriber;
+    }
+
+    public RequestSender addRequestSender()
+    {
+        lockObj.EnterWriteLock();
+        int channelId = getUnusedChannelId();
+        RequestSender requestSender = new RequestSender(this, channelId);
+        if (sendMessage(channelId, "REQ"))
+            requestSenders[channelId] = requestSender;
+        else
+            requestSender.closed();
+
+        lockObj.ExitWriteLock();
+        return requestSender;
+    }
+
+    public RequestHandler addRequestHandler(string queueName, RequestHandler.IHandler handler)
+    {
+        lockObj.EnterWriteLock();
+        int channelId = getUnusedChannelId();
+        RequestHandler requestHandler = new RequestHandler(this, channelId, queueName, handler);
+        if (sendMessage(channelId, "HND " + queueName))
+            requestHandlers[channelId] = requestHandler;
+        else
+            requestHandler.error();
+
+        lockObj.ExitWriteLock();
+        return requestHandler;
+    }
+
+    internal void removePublisher(int channelId)
+    {
+        lockObj.EnterWriteLock();
+        publishers.Remove(channelId);
+        lockObj.ExitWriteLock();
+    }
+
+    internal void removeSubscriber(int channelId)
+    {
+        lockObj.EnterWriteLock();
+        subscribers.Remove(channelId);
+        lockObj.ExitWriteLock();
+    }
+
+    internal void removeRequestSender(int channelId)
+    {
+        lockObj.EnterWriteLock();
+        requestSenders.Remove(channelId);
+        lockObj.ExitWriteLock();
+    }
+
+    internal void removeRequestHandler(int channelId)
+    {
+        lockObj.EnterWriteLock();
+        requestHandlers.Remove(channelId);
+        lockObj.ExitWriteLock();
+    }
+
+    private int getUnusedChannelId()
+    {
+        return nextChannelId++;
+    }
+
+    private bool dispatchReceivedMessage(string message)
+    {
+        string[] parts = message.Split(' ', 2);
+        if (parts.Length != 2)
+            return false;
+
+        if (!int.TryParse(parts[0], out int channelId) || channelId <= 0)
+            return false;
+
+        Publisher? publisher = publishers.GetOrDefault(channelId, null);
+        if (publisher != null)
+            return publisher.handleMessage(parts[1]);
+
+        Subscriber? subscriber = subscribers.GetOrDefault(channelId, null);
+        if (subscriber != null)
+            return subscriber.handleMessage(parts[1]);
+
+        RequestSender? requestSender = requestSenders.GetOrDefault(channelId, null);
+        if (requestSender != null)
+            return requestSender.handleMessage(parts[1]);
+
+        RequestHandler? requestHandler = requestHandlers.GetOrDefault(channelId, null);
+        if (requestHandler != null)
+            return requestHandler.handleMessage(parts[1]);
+
+        return channelId < nextChannelId;
+    }
+
+    internal bool sendMessage(int channelId, string message)
+    {
+        try
+        {
+            lockObj.EnterReadLock();
+            if (closed || error)
+            {
+                return false;
+            }
+        }
+        finally
+        {
+            lockObj.ExitReadLock();
+        }
+
+        for (; ; )
+        {
+            try
+            {
+                outgoingMessageQueue.Add(channelId + " " + message + "\n");
+                break;
+            }
+            catch (ThreadInterruptedException)
+            {
+                // empty
+            }
+        }
+
+        return true;
     }
 }

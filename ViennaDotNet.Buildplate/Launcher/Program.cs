@@ -2,91 +2,91 @@
 using Serilog;
 using ViennaDotNet.EventBus.Client;
 
-namespace ViennaDotNet.Buildplate.Launcher
+namespace ViennaDotNet.Buildplate.Launcher;
+
+internal static class Program
 {
-    internal static class Program
-    {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        class Options
-        {
-            [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]
-            public string EventBusConnectionString { get; set; }
-            [Option("publicAddress", Required = true, HelpText = "Public server address to report in instance info")]
-            public string PublicAddress { get; set; }
-            [Option("bridgeJar", Required = true, HelpText = "Fountain bridge JAR file")]
-            public string BridgeJar { get; set; }
-            [Option("serverTemplateDir", Required = true, HelpText = "Minecraft/Fabric server template directory, containing the Fabric JAR, mods, and libraries")]
-            public string ServerTemplateDir { get; set; }
-            [Option("fabricJarName", Required = true, HelpText = "Name of the Fabric JAR to run within the server template directory")]
-            public string FabricJarName { get; set; }
-            [Option("connectorPluginJar", Required = true, HelpText = "Fountain connector plugin JAR")]
-            public string ConnectorPluginJar { get; set; }
-        }
+    class Options
+    {
+        [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]
+        public string EventBusConnectionString { get; set; }
+        [Option("publicAddress", Required = true, HelpText = "Public server address to report in instance info")]
+        public string PublicAddress { get; set; }
+        [Option("bridgeJar", Required = true, HelpText = "Fountain bridge JAR file")]
+        public string BridgeJar { get; set; }
+        [Option("serverTemplateDir", Required = true, HelpText = "Minecraft/Fabric server template directory, containing the Fabric JAR, mods, and libraries")]
+        public string ServerTemplateDir { get; set; }
+        [Option("fabricJarName", Required = true, HelpText = "Name of the Fabric JAR to run within the server template directory")]
+        public string FabricJarName { get; set; }
+        [Option("connectorPluginJar", Required = true, HelpText = "Fountain connector plugin JAR")]
+        public string ConnectorPluginJar { get; set; }
+    }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        static int Main(string[] args)
+    static int Main(string[] args)
+    {
+        var log = new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.File("logs/debug.txt", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 8338607, outputTemplate: "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+            .MinimumLevel.Debug()
+            .CreateLogger();
+
+        Log.Logger = log;
+
+        Console.CancelKeyPress += (sender, e) =>
         {
-            var log = new LoggerConfiguration()
-                .WriteTo.Console()
-                .WriteTo.File("logs/debug.txt", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 8338607, outputTemplate: "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
-                .MinimumLevel.Debug()
-                .CreateLogger();
+            Log.Information("Ctrl+C received, ignored");
+            e.Cancel = true;
+        };
 
-            Log.Logger = log;
+        AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
+        {
+            Log.Fatal($"Unhandeled exception: {e.ExceptionObject}");
+            Log.CloseAndFlush();
+            Environment.Exit(1);
+        };
 
-            Console.CancelKeyPress += (sender, e) =>
-            {
-                Log.Information("Ctrl+C received, ignored");
-                e.Cancel = true;
-            };
+        ParserResult<Options> res = Parser.Default.ParseArguments<Options>(args);
 
-            AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
-            {
-                Log.Fatal($"Unhandeled exception: {e.ExceptionObject}");
-                Log.CloseAndFlush();
-                Environment.Exit(1);
-            };
-
-            ParserResult<Options> res = Parser.Default.ParseArguments<Options>(args);
-
-            Options options;
-            if (res is Parsed<Options> parsed)
-                options = parsed.Value;
-            else if (res is NotParsed<Options> notParsed)
-            {
-                if (res.Errors.Any(error => error is HelpRequestedError))
-                    return 0;
-                else if (res.Errors.Any(error => error is VersionRequestedError))
-                    return 0;
-                else
-                    return 1;
-            }
+        Options options;
+        if (res is Parsed<Options> parsed)
+            options = parsed.Value;
+        else if (res is NotParsed<Options> notParsed)
+        {
+            if (res.Errors.Any(error => error is HelpRequestedError))
+                return 0;
+            else if (res.Errors.Any(error => error is VersionRequestedError))
+                return 0;
             else
                 return 1;
-
-            Log.Information("Connecting to event bus");
-            EventBusClient eventBusClient;
-            try
-            {
-                eventBusClient = EventBusClient.create(options.EventBusConnectionString);
-            }
-            catch (EventBusClientException ex)
-            {
-                Log.Fatal($"Could not connect to event bus: {ex}");
-                return 1;
-            }
-            Log.Information("Connected to event bus");
-
-            string javaCmd = JavaLocator.locateJava();
-            Starter starter = new Starter(eventBusClient, options.EventBusConnectionString, options.PublicAddress, javaCmd, options.BridgeJar, options.ServerTemplateDir, options.FabricJarName, options.ConnectorPluginJar);
-            PreviewGenerator previewGenerator = new PreviewGenerator(javaCmd, options.BridgeJar);
-            InstanceManager instanceManager = new InstanceManager(eventBusClient, starter, previewGenerator);
-
-            AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
-            {
-                instanceManager.shutdown();
-            };
-
-            return 0;
         }
+        else
+            return 1;
+
+        Log.Information("Connecting to event bus");
+        EventBusClient eventBusClient;
+        try
+        {
+            eventBusClient = EventBusClient.create(options.EventBusConnectionString);
+        }
+        catch (EventBusClientException ex)
+        {
+            Log.Fatal($"Could not connect to event bus: {ex}");
+            return 1;
+        }
+
+        Log.Information("Connected to event bus");
+
+        string javaCmd = JavaLocator.locateJava();
+        Starter starter = new Starter(eventBusClient, options.EventBusConnectionString, options.PublicAddress, javaCmd, options.BridgeJar, options.ServerTemplateDir, options.FabricJarName, options.ConnectorPluginJar);
+        PreviewGenerator previewGenerator = new PreviewGenerator(javaCmd, options.BridgeJar);
+        InstanceManager instanceManager = new InstanceManager(eventBusClient, starter, previewGenerator);
+
+        AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+        {
+            instanceManager.shutdown();
+        };
+
+        return 0;
     }
 }

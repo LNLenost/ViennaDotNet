@@ -1,28 +1,27 @@
-﻿namespace ViennaDotNet.Launcher
+﻿namespace ViennaDotNet.Launcher;
+
+internal static class U
 {
-    internal static class U
+    public static void PAK(string text = "continue")
     {
-        public static void PAK(string text = "continue")
+        Console.WriteLine($"Press any key to {text}...");
+        Console.ReadKey(true);
+    }
+
+    public static void ConfirmType(string textToType)
+    {
+        textToType = textToType.ToLowerInvariant();
+
+        Console.WriteLine($"Type \"{textToType}\" (without \") and hit enter to proceed");
+
+        while (true)
         {
-            Console.WriteLine($"Press any key to {text}...");
-            Console.ReadKey(true);
-        }
+            string typed = Console.ReadLine()?.ToLowerInvariant() ?? string.Empty;
 
-        public static void ConfirmType(string textToType)
-        {
-            textToType = textToType.ToLowerInvariant();
+            if (typed == textToType)
+                return;
 
-            Console.WriteLine($"Type \"{textToType}\" (without \") and hit enter to proceed");
-
-            while (true)
-            {
-                string typed = Console.ReadLine()?.ToLowerInvariant() ?? string.Empty;
-
-                if (typed == textToType)
-                    return;
-
-                Console.WriteLine("Incorrect input. Try again.");
-            }
+            Console.WriteLine("Incorrect input. Try again.");
         }
     }
 }

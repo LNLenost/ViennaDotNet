@@ -5,88 +5,87 @@ using Serilog;
 using Serilog.Events;
 using ViennaDotNet.ApiServer.Authentication;
 
-namespace ViennaDotNet.ApiServer
+namespace ViennaDotNet.ApiServer;
+
+public class Startup
 {
-    public class Startup
+    public Startup(IConfiguration configuration)
     {
-        public Startup(IConfiguration configuration)
+        Configuration = configuration;
+    }
+
+    public IConfiguration Configuration { get; }
+
+    // This method gets called by the runtime. Use this method to add services to the container.
+    public void ConfigureServices(IServiceCollection services)
+    {
+        //services.AddRazorPages();
+        services.AddControllers();
+
+        services.AddResponseCompression(options =>
         {
-            Configuration = configuration;
-        }
+            options.Providers.Add<GzipCompressionProvider>();
+        });
 
-        public IConfiguration Configuration { get; }
+        services.AddResponseCaching();
 
-        // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        services.AddApiVersioning(config =>
         {
-            //services.AddRazorPages();
-            services.AddControllers();
+            config.DefaultApiVersion = new ApiVersion(1, 1);
+            config.AssumeDefaultVersionWhenUnspecified = true;
+            config.ReportApiVersions = true;
+        });
 
-            services.AddResponseCompression(options =>
-            {
-                options.Providers.Add<GzipCompressionProvider>();
-            });
+        services.AddAuthentication("GenoaAuth")
+            .AddScheme<AuthenticationSchemeOptions, GenoaAuthenticationHandler>("GenoaAuth", null);
+    }
 
-            services.AddResponseCaching();
-
-            services.AddApiVersioning(config =>
-            {
-                config.DefaultApiVersion = new ApiVersion(1, 1);
-                config.AssumeDefaultVersionWhenUnspecified = true;
-                config.ReportApiVersions = true;
-            });
-
-            services.AddAuthentication("GenoaAuth")
-                .AddScheme<AuthenticationSchemeOptions, GenoaAuthenticationHandler>("GenoaAuth", null);
-        }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        app.Use(async (context, next) =>
         {
-            app.Use(async (context, next) =>
+            context.Items.Add("RequestStartedOn", DateTime.UtcNow);
+            await next();
+        });
+
+        app.UseSerilogRequestLogging(options =>
+        {
+            // Customize the message template
+            options.MessageTemplate = "{RemoteIpAddress} {RequestMethod} {RequestScheme}://{RequestHost}{RequestPath}{RequestQuery} responded {StatusCode} in {Elapsed:0.0000} ms";
+
+            // Emit debug-level events instead of the defaults
+            options.GetLevel = (httpContext, elapsed, ex) => LogEventLevel.Verbose;
+
+            // Attach additional properties to the request completion event
+            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
             {
-                context.Items.Add("RequestStartedOn", DateTime.UtcNow);
-                await next();
-            });
+                diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+                diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+                diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress);
+                diagnosticContext.Set("RequestQuery", httpContext.Request.QueryString);
+            };
+        });
 
-            app.UseSerilogRequestLogging(options =>
-            {
-                // Customize the message template
-                options.MessageTemplate = "{RemoteIpAddress} {RequestMethod} {RequestScheme}://{RequestHost}{RequestPath}{RequestQuery} responded {StatusCode} in {Elapsed:0.0000} ms";
+        app.UseETagger();
+        //app.UseHttpsRedirection();
 
-                // Emit debug-level events instead of the defaults
-                options.GetLevel = (httpContext, elapsed, ex) => LogEventLevel.Verbose;
+        app.UseRouting();
 
-                // Attach additional properties to the request completion event
-                options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-                {
-                    diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-                    diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
-                    diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress);
-                    diagnosticContext.Set("RequestQuery", httpContext.Request.QueryString);
-                };
-            });
+        app.UseAuthentication();
+        app.UseAuthorization();
 
-            app.UseETagger();
-            //app.UseHttpsRedirection();
+        //app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TransactionManager.MaximumTimeout });
 
-            app.UseRouting();
+        app.UseResponseCaching();
 
-            app.UseAuthentication();
-            app.UseAuthorization();
+        app.UseResponseCompression();
 
-            //app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TransactionManager.MaximumTimeout });
+        //app.UseSession();
 
-            app.UseResponseCaching();
-
-            app.UseResponseCompression();
-
-            //app.UseSession();
-
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
-        }
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
     }
 }

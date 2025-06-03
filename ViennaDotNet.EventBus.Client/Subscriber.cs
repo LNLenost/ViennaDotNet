@@ -1,100 +1,99 @@
-﻿namespace ViennaDotNet.EventBus.Client
+﻿namespace ViennaDotNet.EventBus.Client;
+
+public sealed class Subscriber
 {
-    public sealed class Subscriber
+    private EventBusClient client;
+    int channelId;
+
+    string queueName;
+
+    private ISubscriberListener listener;
+
+    internal Subscriber(EventBusClient client, int channelId, string queueName, ISubscriberListener listener)
     {
-        private EventBusClient client;
-        int channelId;
+        this.client = client;
+        this.channelId = channelId;
+        this.queueName = queueName;
+        this.listener = listener;
+    }
 
-        string queueName;
+    public void close()
+    {
+        client.removeSubscriber(channelId);
+        client.sendMessage(channelId, "CLOSE");
+    }
 
-        private ISubscriberListener listener;
-
-        internal Subscriber(EventBusClient client, int channelId, string queueName, ISubscriberListener listener)
+    internal bool handleMessage(string message)
+    {
+        if (message == "ERR")
         {
-            this.client = client;
-            this.channelId = channelId;
-            this.queueName = queueName;
-            this.listener = listener;
-        }
-
-        public void close()
-        {
-            client.removeSubscriber(channelId);
-            client.sendMessage(channelId, "CLOSE");
-        }
-
-        internal bool handleMessage(string message)
-        {
-            if (message == "ERR")
-            {
-                close();
-                listener.Error();
-                return true;
-            }
-            else
-            {
-                string[] fields = message.Split(':', 3);
-                if (fields.Length != 3)
-                    return false;
-
-                string timestampString = fields[0];
-                if (!long.TryParse(fields[0], out long timestamp) || timestamp < 0)
-                    return false;
-
-                string type = fields[1];
-                string data = fields[2];
-
-                listener.Event(new Event(timestamp, type, data));
-
-                return true;
-            }
-        }
-
-        internal void error()
-        {
+            close();
             listener.Error();
+            return true;
+        }
+        else
+        {
+            string[] fields = message.Split(':', 3);
+            if (fields.Length != 3)
+                return false;
+
+            string timestampString = fields[0];
+            if (!long.TryParse(fields[0], out long timestamp) || timestamp < 0)
+                return false;
+
+            string type = fields[1];
+            string data = fields[2];
+
+            listener.Event(new Event(timestamp, type, data));
+
+            return true;
+        }
+    }
+
+    internal void error()
+    {
+        listener.Error();
+    }
+
+    public interface ISubscriberListener
+    {
+        void Event(Event _event);
+
+        void Error();
+    }
+
+    public class SubscriberListener : ISubscriberListener
+    {
+        public event Action<Event>? OnEvent;
+        public event Action? OnError;
+
+        public SubscriberListener()
+        {
+        }
+        public SubscriberListener(Action<Event>? _onEvent = null, Action? _onError = null)
+        {
+            OnEvent += _onEvent;
+            OnError += _onError;
         }
 
-        public interface ISubscriberListener
+        public void Error()
+            => OnError?.Invoke();
+
+        public void Event(Event _event)
+            => OnEvent?.Invoke(_event);
+    }
+
+    public sealed class Event
+    {
+        public long timestamp;
+        public string type;
+        public string data;
+
+        internal Event(long timestamp, string type, string data)
         {
-            void Event(Event _event);
-
-            void Error();
-        }
-
-        public class SubscriberListener : ISubscriberListener
-        {
-            public event Action<Event>? OnEvent;
-            public event Action? OnError;
-
-            public SubscriberListener()
-            {
-            }
-            public SubscriberListener(Action<Event>? _onEvent = null, Action? _onError = null)
-            {
-                OnEvent += _onEvent;
-                OnError += _onError;
-            }
-
-            public void Error()
-                => OnError?.Invoke();
-
-            public void Event(Event _event)
-                => OnEvent?.Invoke(_event);
-        }
-
-        public sealed class Event
-        {
-            public long timestamp;
-            public string type;
-            public string data;
-
-            internal Event(long timestamp, string type, string data)
-            {
-                this.timestamp = timestamp;
-                this.type = type;
-                this.data = data;
-            }
+            this.timestamp = timestamp;
+            this.type = type;
+            this.data = data;
         }
     }
 }

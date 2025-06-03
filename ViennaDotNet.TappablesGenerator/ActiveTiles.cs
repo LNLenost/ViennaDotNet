@@ -3,135 +3,134 @@ using Serilog;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
-namespace ViennaDotNet.TappablesGenerator
+namespace ViennaDotNet.TappablesGenerator;
+
+public class ActiveTiles
 {
-    public class ActiveTiles
+    private static readonly int ACTIVE_TILE_RADIUS = 3;
+    private static readonly long ACTIVE_TILE_EXPIRY_TIME = 2 * 60 * 1000;
+
+    private readonly Dictionary<int, ActiveTile> activeTiles = [];
+    private readonly IActiveTileListener activeTileListener;
+
+    public ActiveTiles(EventBusClient eventBusClient, IActiveTileListener activeTileListener)
     {
-        private static readonly int ACTIVE_TILE_RADIUS = 3;
-        private static readonly long ACTIVE_TILE_EXPIRY_TIME = 2 * 60 * 1000;
+        this.activeTileListener = activeTileListener;
 
-        private readonly Dictionary<int, ActiveTile> activeTiles = new();
-        private readonly IActiveTileListener activeTileListener;
-
-        public ActiveTiles(EventBusClient eventBusClient, IActiveTileListener activeTileListener)
+        eventBusClient.addRequestHandler("tappables", new RequestHandler.Handler(request =>
         {
-            this.activeTileListener = activeTileListener;
-
-            eventBusClient.addRequestHandler("tappables", new RequestHandler.Handler(request =>
+            if (request.type == "activeTile")
             {
-                if (request.type == "activeTile")
+                ActiveTileNotification activeTileNotification;
+                try
                 {
-                    ActiveTileNotification activeTileNotification;
-                    try
-                    {
-                        activeTileNotification = JsonConvert.DeserializeObject<ActiveTileNotification>(request.data)!;
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"Could not deserialise active tile notification event: {ex}");
-                        return null;
-                    }
-
-                    long currentTime = U.CurrentTimeMillis();
-                    pruneActiveTiles(currentTime);
-                    for (int tileX = activeTileNotification.x - ACTIVE_TILE_RADIUS; tileX < activeTileNotification.x + ACTIVE_TILE_RADIUS + 1; tileX++)
-                    {
-                        for (int tileY = activeTileNotification.y - ACTIVE_TILE_RADIUS; tileY < activeTileNotification.y + ACTIVE_TILE_RADIUS + 1; tileY++)
-                            markTileActive(tileX, tileY, currentTime);
-                    }
-
-                    return string.Empty;
+                    activeTileNotification = JsonConvert.DeserializeObject<ActiveTileNotification>(request.data)!;
                 }
-                else
+                catch (Exception ex)
+                {
+                    Log.Error($"Could not deserialise active tile notification event: {ex}");
                     return null;
-            }, () =>
-            {
-                Log.Error("Event bus subscriber error");
-                Environment.Exit(1);
-            }));
-        }
+                }
 
-        public ActiveTile[] getActiveTiles(long currentTime)
-        {
-            return activeTiles.Values.Where(activeTile => currentTime < activeTile.latestActiveTime + ACTIVE_TILE_EXPIRY_TIME).ToArray();
-        }
+                long currentTime = U.CurrentTimeMillis();
+                pruneActiveTiles(currentTime);
+                for (int tileX = activeTileNotification.x - ACTIVE_TILE_RADIUS; tileX < activeTileNotification.x + ACTIVE_TILE_RADIUS + 1; tileX++)
+                {
+                    for (int tileY = activeTileNotification.y - ACTIVE_TILE_RADIUS; tileY < activeTileNotification.y + ACTIVE_TILE_RADIUS + 1; tileY++)
+                        markTileActive(tileX, tileY, currentTime);
+                }
 
-        private void markTileActive(int tileX, int tileY, long currentTime)
-        {
-            ActiveTile? activeTile = activeTiles.GetOrDefault((tileX << 16) + tileY, null);
-            if (activeTile == null)
-            {
-                Log.Information($"Tile {tileX},{tileY} is becoming active");
-                activeTile = new ActiveTile(tileX, tileY, currentTime, currentTime);
-                activeTileListener.active(activeTile);
+                return string.Empty;
             }
             else
-                activeTile = new ActiveTile(tileX, tileY, activeTile.firstActiveTime, currentTime);
-
-            activeTiles[(tileX << 16) + tileY] = activeTile;
-        }
-
-        private void pruneActiveTiles(long currentTime)
+                return null;
+        }, () =>
         {
-            List<int> entriesToRemove = new();
+            Log.Error("Event bus subscriber error");
+            Environment.Exit(1);
+        }));
+    }
 
-            foreach (var entry in activeTiles)
+    public ActiveTile[] getActiveTiles(long currentTime)
+    {
+        return activeTiles.Values.Where(activeTile => currentTime < activeTile.latestActiveTime + ACTIVE_TILE_EXPIRY_TIME).ToArray();
+    }
+
+    private void markTileActive(int tileX, int tileY, long currentTime)
+    {
+        ActiveTile? activeTile = activeTiles.GetOrDefault((tileX << 16) + tileY, null);
+        if (activeTile == null)
+        {
+            Log.Information($"Tile {tileX},{tileY} is becoming active");
+            activeTile = new ActiveTile(tileX, tileY, currentTime, currentTime);
+            activeTileListener.active(activeTile);
+        }
+        else
+            activeTile = new ActiveTile(tileX, tileY, activeTile.firstActiveTime, currentTime);
+
+        activeTiles[(tileX << 16) + tileY] = activeTile;
+    }
+
+    private void pruneActiveTiles(long currentTime)
+    {
+        List<int> entriesToRemove = [];
+
+        foreach (var entry in activeTiles)
+        {
+            ActiveTile activeTile = entry.Value;
+            if (activeTile.latestActiveTime + ACTIVE_TILE_EXPIRY_TIME <= currentTime)
             {
-                ActiveTile activeTile = entry.Value;
-                if (activeTile.latestActiveTime + ACTIVE_TILE_EXPIRY_TIME <= currentTime)
-                {
-                    Log.Information($"Tile {activeTile.tileX},{activeTile.tileY} is inactive");
-                    entriesToRemove.Add(entry.Key);
-                }
-            }
-
-            foreach (var key in entriesToRemove)
-            {
-                ActiveTile activeTile = activeTiles.JavaRemove(key)!;
-                activeTileListener.inactive(activeTile);
+                Log.Information($"Tile {activeTile.tileX},{activeTile.tileY} is inactive");
+                entriesToRemove.Add(entry.Key);
             }
         }
 
-        public record ActiveTile(
-            int tileX,
-            int tileY,
-            long firstActiveTime,
-            long latestActiveTime
-        )
+        foreach (int key in entriesToRemove)
         {
+            ActiveTile activeTile = activeTiles.JavaRemove(key)!;
+            activeTileListener.inactive(activeTile);
+        }
+    }
+
+    public record ActiveTile(
+        int tileX,
+        int tileY,
+        long firstActiveTime,
+        long latestActiveTime
+    )
+    {
+    }
+
+    record ActiveTileNotification(
+        int x,
+        int y,
+        string playerId
+    )
+    {
+    }
+
+    public interface IActiveTileListener
+    {
+        void active(ActiveTile activeTile);
+
+        void inactive(ActiveTile activeTile);
+    }
+
+    public class ActiveTileListener : IActiveTileListener
+    {
+        public Action<ActiveTile>? Active;
+        public Action<ActiveTile>? Inactive;
+
+        public ActiveTileListener(Action<ActiveTile>? _active, Action<ActiveTile>? _inactive)
+        {
+            Active = _active;
+            Inactive = _inactive;
         }
 
-        record ActiveTileNotification(
-            int x,
-            int y,
-            string playerId
-        )
-        {
-        }
+        public void active(ActiveTile activeTile)
+            => Active?.Invoke(activeTile);
 
-        public interface IActiveTileListener
-        {
-            void active(ActiveTile activeTile);
-
-            void inactive(ActiveTile activeTile);
-        }
-
-        public class ActiveTileListener : IActiveTileListener
-        {
-            public Action<ActiveTile>? Active;
-            public Action<ActiveTile>? Inactive;
-
-            public ActiveTileListener(Action<ActiveTile>? _active, Action<ActiveTile>? _inactive)
-            {
-                Active = _active;
-                Inactive = _inactive;
-            }
-
-            public void active(ActiveTile activeTile)
-                => Active?.Invoke(activeTile);
-
-            public void inactive(ActiveTile activeTile)
-                => Inactive?.Invoke(activeTile);
-        }
+        public void inactive(ActiveTile activeTile)
+            => Inactive?.Invoke(activeTile);
     }
 }

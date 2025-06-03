@@ -1,9 +1,8 @@
-﻿namespace ViennaDotNet.Buildplate.Connector.Model
+﻿namespace ViennaDotNet.Buildplate.Connector.Model;
+
+public record PlayerConnectedRequest(
+    string uuid,
+    string joinCode
+)
 {
-    public record PlayerConnectedRequest(
-        string uuid,
-        string joinCode
-    )
-    {
-    }
 }

@@ -1,97 +1,96 @@
 ﻿using ViennaDotNet.Common.Utils;
 
-namespace ViennaDotNet.ObjectStore.Server
+namespace ViennaDotNet.ObjectStore.Server;
+
+public class DataStore
 {
-    public class DataStore
+    private readonly DirectoryInfo rootDirectory;
+
+    public DataStore(DirectoryInfo _rootDirectory)
     {
-        private readonly DirectoryInfo rootDirectory;
+        rootDirectory = _rootDirectory;
 
-        public DataStore(DirectoryInfo _rootDirectory)
+        if (!rootDirectory.CanRead())
+            throw new DataStoreException($"Data root directory {rootDirectory.FullName} is not a directory or cannot be read");
+
+        if (!rootDirectory.Exists)
+            rootDirectory.Create();
+    }
+
+    public string store(byte[] data)
+    {
+        string id = U.RandomUuid().ToString();
+
+        DirectoryInfo dir = new DirectoryInfo(Path.Combine(rootDirectory.FullName, id.Substring(0, 2)));
+        if (!dir.Exists)
+            dir.Create();
+
+        FileInfo file = new FileInfo(Path.Combine(dir.FullName, id));
+
+        try
         {
-            rootDirectory = _rootDirectory;
-
-            if (!rootDirectory.CanRead())
-                throw new DataStoreException($"Data root directory {rootDirectory.FullName} is not a directory or cannot be read");
-
-            if (!rootDirectory.Exists)
-                rootDirectory.Create();
+            using (FileStream fileOutputStream = file.Open(FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+                fileOutputStream.Write(data);
         }
-
-        public string store(byte[] data)
+        catch (IOException ex)
         {
-            string id = U.RandomUuid().ToString();
-
-            DirectoryInfo dir = new DirectoryInfo(Path.Combine(rootDirectory.FullName, id.Substring(0, 2)));
-            if (!dir.Exists)
-                dir.Create();
-
-            FileInfo file = new FileInfo(Path.Combine(dir.FullName, id));
-
-            try
-            {
-                using (FileStream fileOutputStream = file.Open(FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
-                    fileOutputStream.Write(data);
-            }
-            catch (IOException ex)
-            {
-                file.Delete();
-                throw new DataStoreException(ex);
-            }
-
-            return id;
-        }
-
-        public byte[]? load(string id)
-        {
-            FileInfo file = new FileInfo(Path.Combine(rootDirectory.FullName, id.Substring(0, 2), id));
-            if (!file.Exists)
-            {
-                return null;
-            }
-
-            MemoryStream byteArrayOutputStream;
-            try
-            {
-                byteArrayOutputStream = new MemoryStream((int)file.Length);
-            }
-            catch (IOException ex)
-            {
-                throw new DataStoreException(ex);
-            }
-
-            try
-            {
-                using (FileStream fileInputStream = file.OpenRead())
-                    fileInputStream.CopyTo(byteArrayOutputStream);
-            }
-
-            catch (IOException ex)
-            {
-                throw new DataStoreException(ex);
-            }
-
-            byte[] data = byteArrayOutputStream.ToArray();
-
-            return data;
-        }
-
-        public void delete(string id)
-        {
-            FileInfo file = new FileInfo(Path.Combine(rootDirectory.FullName, id.Substring(0, 2), id));
             file.Delete();
+            throw new DataStoreException(ex);
         }
 
-        public class DataStoreException : Exception
-        {
-            public DataStoreException(string? message)
-                : base(message)
-            {
-            }
+        return id;
+    }
 
-            public DataStoreException(Exception? cause)
-                : base(null, cause)
-            {
-            }
+    public byte[]? load(string id)
+    {
+        FileInfo file = new FileInfo(Path.Combine(rootDirectory.FullName, id.Substring(0, 2), id));
+        if (!file.Exists)
+        {
+            return null;
+        }
+
+        MemoryStream byteArrayOutputStream;
+        try
+        {
+            byteArrayOutputStream = new MemoryStream((int)file.Length);
+        }
+        catch (IOException ex)
+        {
+            throw new DataStoreException(ex);
+        }
+
+        try
+        {
+            using (FileStream fileInputStream = file.OpenRead())
+                fileInputStream.CopyTo(byteArrayOutputStream);
+        }
+
+        catch (IOException ex)
+        {
+            throw new DataStoreException(ex);
+        }
+
+        byte[] data = byteArrayOutputStream.ToArray();
+
+        return data;
+    }
+
+    public void delete(string id)
+    {
+        FileInfo file = new FileInfo(Path.Combine(rootDirectory.FullName, id.Substring(0, 2), id));
+        file.Delete();
+    }
+
+    public class DataStoreException : Exception
+    {
+        public DataStoreException(string? message)
+            : base(message)
+        {
+        }
+
+        public DataStoreException(Exception? cause)
+            : base(null, cause)
+        {
         }
     }
 }

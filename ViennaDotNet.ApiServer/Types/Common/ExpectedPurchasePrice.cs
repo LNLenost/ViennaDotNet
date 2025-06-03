@@ -1,8 +1,7 @@
-﻿namespace ViennaDotNet.ApiServer.Types.Common
+﻿namespace ViennaDotNet.ApiServer.Types.Common;
+
+public record ExpectedPurchasePrice(
+    int expectedPurchasePrice
+)
 {
-    public record ExpectedPurchasePrice(
-        int expectedPurchasePrice
-    )
-    {
-    }
 }

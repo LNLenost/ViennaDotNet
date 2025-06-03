@@ -1,33 +1,32 @@
 ﻿using static ViennaDotNet.ApiServer.Types.Catalog.BoostMetadata;
 
-namespace ViennaDotNet.ApiServer.Types.Catalog
+namespace ViennaDotNet.ApiServer.Types.Catalog;
+
+public record BoostMetadata(
+    string name,
+    string type,
+    string attribute,
+    bool canBeDeactivated,
+    bool canBeRemoved,
+    string? activeDuration,
+    bool additive,
+    int? level,
+    Effect[] effects,
+    string? scenario,
+    string? cooldown
+)
 {
-    public record BoostMetadata(
-        string name,
+    public record Effect(
         string type,
-        string attribute,
-        bool canBeDeactivated,
-        bool canBeRemoved,
-        string? activeDuration,
-        bool additive,
-        int? level,
-        Effect[] effects,
-        string? scenario,
-        string? cooldown
+        string? duration,
+        double? value,
+        string unit,
+        string targets,
+        string[] items,
+        string[] itemScenarios,
+        string activation,
+        string? modifiesType
     )
     {
-        public record Effect(
-            string type,
-            string? duration,
-            double? value,
-            string unit,
-            string targets,
-            string[] items,
-            string[] itemScenarios,
-            string activation,
-            string? modifiesType
-        )
-        {
-        }
     }
 }

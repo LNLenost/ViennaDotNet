@@ -1,8 +1,7 @@
-﻿namespace ViennaDotNet.ApiServer.Types.Workshop
+﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
+
+public record BoostState(
+// TODO
+)
 {
-    public record BoostState(
-    // TODO
-    )
-    {
-    }
 }
