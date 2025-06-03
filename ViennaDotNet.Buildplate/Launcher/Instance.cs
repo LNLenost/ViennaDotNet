@@ -63,7 +63,7 @@ public class Instance
     private ConsoleProcess? serverProcess = null;
     private ConsoleProcess? bridgeProcess = null;
     private bool shuttingDown = false;
-    private readonly object subprocessLock = new object();
+    private readonly Lock subprocessLock = new();
 
     private volatile bool hostPlayerConnected = false;
 

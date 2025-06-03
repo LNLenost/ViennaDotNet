@@ -16,6 +16,8 @@ public sealed class EarthDB : IDisposable
     private string connectionString;
     private HashSet<SqliteTransaction> transactions = [];
 
+    private readonly Lock _lock = new();
+
     private EarthDB(string _connectionString)
     {
         connectionString = _connectionString;
@@ -36,7 +38,7 @@ public sealed class EarthDB : IDisposable
 
     private SqliteTransaction transaction(bool write)
     {
-        lock (this)
+        lock (_lock)
         {
             try
             {
@@ -55,14 +57,16 @@ public sealed class EarthDB : IDisposable
 
     public void Dispose()
     {
-        lock (this)
+        lock (_lock)
         {
             foreach (var transaction in transactions)
+            {
                 try
                 {
                     transaction.Dispose();
                 }
                 catch { }
+            }
         }
     }
 

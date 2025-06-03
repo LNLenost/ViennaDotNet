@@ -8,7 +8,7 @@ public sealed class Publisher
     private readonly EventBusClient client;
     private readonly int channelId;
 
-    private readonly object lockObj = new object();
+    private readonly Lock _lock = new();
 
     private bool _closed = false;
 
@@ -44,7 +44,7 @@ public sealed class Publisher
 
         TaskCompletionSource<bool> completableFuture = new TaskCompletionSource<bool>();
 
-        lock (lockObj)
+        lock (_lock)
         {
             if (_closed)
                 completableFuture.SetResult(false);
@@ -64,7 +64,7 @@ public sealed class Publisher
     {
         if (message == "ACK")
         {
-            lock (lockObj)
+            lock (_lock)
             {
                 if (currentPendingEventResult != null)
                 {
@@ -99,7 +99,7 @@ public sealed class Publisher
 
     internal void closed()
     {
-        lock (lockObj)
+        lock (_lock)
         {
             _closed = true;
 

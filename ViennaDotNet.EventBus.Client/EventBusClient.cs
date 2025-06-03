@@ -54,7 +54,7 @@ public class EventBusClient
     private readonly BlockingCollection<string> outgoingMessageQueue = [];
     private Thread outgoingThread;
     private Thread incomingThread;
-    private readonly ReaderWriterLockSlim lockObj = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+    private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
     private bool closed = false;
     private bool error = false;
@@ -100,9 +100,9 @@ public class EventBusClient
             }
             catch (SocketException)
             {
-                lockObj.EnterWriteLock();
+                _lock.EnterWriteLock();
                 error = true;
-                lockObj.ExitWriteLock();
+                _lock.ExitWriteLock();
             }
 
             initiateClose();
@@ -139,17 +139,17 @@ public class EventBusClient
                                 byteArrayOutputStream.Write(readBuffer, startOffset, offset - startOffset);
                                 string message = Encoding.ASCII.GetString(byteArrayOutputStream.ToArray());
 
-                                lockObj.EnterReadLock();
+                                _lock.EnterReadLock();
                                 bool suppress = closed || error;
-                                lockObj.ExitReadLock();
+                                _lock.ExitReadLock();
 
                                 if (!suppress)
                                 {
                                     if (!dispatchReceivedMessage(message))
                                     {
-                                        lockObj.EnterWriteLock();
+                                        _lock.EnterWriteLock();
                                         error = true;
-                                        lockObj.ExitWriteLock();
+                                        _lock.ExitWriteLock();
                                         initiateClose();
                                     }
                                 }
@@ -179,9 +179,9 @@ public class EventBusClient
             }
             catch (SocketException)
             {
-                lockObj.EnterWriteLock();
+                _lock.EnterWriteLock();
                 error = true;
-                lockObj.ExitWriteLock();
+                _lock.ExitWriteLock();
             }
 
             initiateClose();
@@ -236,11 +236,11 @@ public class EventBusClient
 
     private void initiateClose()
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         if (!error)
             closed = true;
 
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
 
         try
         {
@@ -260,7 +260,7 @@ public class EventBusClient
 
     public Publisher addPublisher()
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         int channelId = getUnusedChannelId();
         Publisher publisher = new Publisher(this, channelId);
         if (sendMessage(channelId, "PUB"))
@@ -268,14 +268,14 @@ public class EventBusClient
         else
             publisher.closed();
 
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
 
         return publisher;
     }
 
     public Subscriber addSubscriber(string queueName, Subscriber.ISubscriberListener listener)
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         int channelId = getUnusedChannelId();
         Subscriber subscriber = new Subscriber(this, channelId, queueName, listener);
         if (sendMessage(channelId, "SUB " + queueName))
@@ -283,14 +283,14 @@ public class EventBusClient
         else
             subscriber.error();
 
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
 
         return subscriber;
     }
 
     public RequestSender addRequestSender()
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         int channelId = getUnusedChannelId();
         RequestSender requestSender = new RequestSender(this, channelId);
         if (sendMessage(channelId, "REQ"))
@@ -298,13 +298,13 @@ public class EventBusClient
         else
             requestSender.closed();
 
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
         return requestSender;
     }
 
     public RequestHandler addRequestHandler(string queueName, RequestHandler.IHandler handler)
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         int channelId = getUnusedChannelId();
         RequestHandler requestHandler = new RequestHandler(this, channelId, queueName, handler);
         if (sendMessage(channelId, "HND " + queueName))
@@ -312,36 +312,36 @@ public class EventBusClient
         else
             requestHandler.error();
 
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
         return requestHandler;
     }
 
     internal void removePublisher(int channelId)
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         publishers.Remove(channelId);
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
     }
 
     internal void removeSubscriber(int channelId)
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         subscribers.Remove(channelId);
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
     }
 
     internal void removeRequestSender(int channelId)
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         requestSenders.Remove(channelId);
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
     }
 
     internal void removeRequestHandler(int channelId)
     {
-        lockObj.EnterWriteLock();
+        _lock.EnterWriteLock();
         requestHandlers.Remove(channelId);
-        lockObj.ExitWriteLock();
+        _lock.ExitWriteLock();
     }
 
     private int getUnusedChannelId()
@@ -381,7 +381,7 @@ public class EventBusClient
     {
         try
         {
-            lockObj.EnterReadLock();
+            _lock.EnterReadLock();
             if (closed || error)
             {
                 return false;
@@ -389,7 +389,7 @@ public class EventBusClient
         }
         finally
         {
-            lockObj.ExitReadLock();
+            _lock.ExitReadLock();
         }
 
         for (; ; )

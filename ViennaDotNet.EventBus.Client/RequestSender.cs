@@ -8,7 +8,7 @@ public sealed class RequestSender
     private readonly EventBusClient client;
     private readonly int channelId;
 
-    private readonly object lockObj = new object();
+    private readonly Lock _lock = new();
 
     private bool _closed = false;
 
@@ -44,7 +44,7 @@ public sealed class RequestSender
 
         TaskCompletionSource<string?> completableFuture = new();
 
-        Monitor.Enter(lockObj);
+        Monitor.Enter(_lock);
         if (_closed)
             completableFuture.SetResult(null);
         else
@@ -55,7 +55,7 @@ public sealed class RequestSender
                 sendNextRequest();
         }
 
-        Monitor.Exit(lockObj);
+        Monitor.Exit(_lock);
 
         return completableFuture;
     }
@@ -93,7 +93,7 @@ public sealed class RequestSender
 
             try
             {
-                Monitor.Enter(lockObj);
+                Monitor.Enter(_lock);
                 if (currentPendingResponse != null)
                 {
                     currentPendingResponse.SetResult(response);
@@ -108,7 +108,7 @@ public sealed class RequestSender
             }
             finally
             {
-                Monitor.Exit(lockObj);
+                Monitor.Exit(_lock);
             }
         }
     }
@@ -124,7 +124,7 @@ public sealed class RequestSender
 
     internal void closed()
     {
-        Monitor.Enter(lockObj);
+        Monitor.Enter(_lock);
 
         _closed = true;
 
@@ -137,7 +137,7 @@ public sealed class RequestSender
         queuedRequestResponses.ForEach(completableFuture => completableFuture.TrySetResult(null));
         queuedRequestResponses.Clear();
         queuedRequests.Clear();
-        Monitor.Exit(lockObj);
+        Monitor.Exit(_lock);
     }
 
     private static bool validateQueueName(string queueName)

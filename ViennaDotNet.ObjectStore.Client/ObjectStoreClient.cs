@@ -55,7 +55,7 @@ public class ObjectStoreClient
     private readonly BlockingCollection<object> outgoingMessageQueue = [];
     private readonly Thread outgoingThread;
     private readonly Thread incomingThread;
-    private readonly object lockObj = new object();
+    private readonly Lock _lock = new();
 
     private bool closed = false;
 
@@ -89,7 +89,7 @@ public class ObjectStoreClient
             }
             catch (SocketException)
             {
-                lock (lockObj)
+                lock (_lock)
                     closed = true;
             }
 
@@ -106,7 +106,7 @@ public class ObjectStoreClient
                 int binaryReadLength = 0;
                 for (; ; )
                 {
-                    lock (lockObj)
+                    lock (_lock)
                         if (closed)
                             break;
 
@@ -116,7 +116,7 @@ public class ObjectStoreClient
                         int startOffset = 0;
                         while (startOffset < readLength)
                         {
-                            lock (lockObj)
+                            lock (_lock)
                                 if (closed)
                                     break;
 
@@ -182,13 +182,13 @@ public class ObjectStoreClient
 
             catch (SocketException)
             {
-                lock (lockObj)
+                lock (_lock)
                     closed = true;
             }
 
             initiateClose();
 
-            lock (lockObj)
+            lock (_lock)
             {
                 if (currentCommand != null)
                 {
@@ -238,7 +238,7 @@ public class ObjectStoreClient
 
     private void initiateClose()
     {
-        lock (lockObj)
+        lock (_lock)
             closed = true;
 
         try
@@ -280,7 +280,7 @@ public class ObjectStoreClient
 
     private void queueCommand(Command command)
     {
-        lock (lockObj)
+        lock (_lock)
         {
             if (closed)
                 command.completableFuture.TrySetResult(command.type == Command.Type.DELETE ? false : null);
@@ -295,7 +295,7 @@ public class ObjectStoreClient
 
     private void sendNextCommand()
     {
-        lock (lockObj)
+        lock (_lock)
         {
             currentCommand = null;
 
@@ -331,7 +331,7 @@ public class ObjectStoreClient
 
     private int handleMessage(string message)
     {
-        lock (lockObj)
+        lock (_lock)
         {
             if (closed)
                 return -1;
@@ -422,7 +422,7 @@ public class ObjectStoreClient
 
     private bool handleBinaryData(string message, byte[] data)
     {
-        lock (lockObj)
+        lock (_lock)
         {
             if (closed)
                 return false;
@@ -455,7 +455,7 @@ public class ObjectStoreClient
 
     private void sendMessage(object message)
     {
-        lock (lockObj)
+        lock (_lock)
             if (closed)
                 throw new InvalidOperationException();
 

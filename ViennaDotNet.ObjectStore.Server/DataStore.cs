@@ -10,11 +10,10 @@ public class DataStore
     {
         rootDirectory = _rootDirectory;
 
-        if (!rootDirectory.CanRead())
-            throw new DataStoreException($"Data root directory {rootDirectory.FullName} is not a directory or cannot be read");
-
         if (!rootDirectory.Exists)
+        {
             rootDirectory.Create();
+        }
     }
 
     public string store(byte[] data)

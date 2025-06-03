@@ -44,7 +44,7 @@ public class NetworkServer
         private readonly Socket socket;
 
         //private readonly NetworkStream outputStream;
-        private readonly object sendLock = new object();
+        private readonly Lock sendLock = new();
 
         private readonly Dictionary<int, Channel> channels = [];
 

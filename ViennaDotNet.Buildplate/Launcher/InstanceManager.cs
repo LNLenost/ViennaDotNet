@@ -14,7 +14,7 @@ public class InstanceManager
     private readonly RequestHandler requestHandler;
     private int runningInstanceCount = 0;
     private bool shuttingDown = false;
-    private readonly object lockObj = new bool();
+    private readonly Lock _lock = new();
 
     private sealed record StartRequest(
         string instanceId,
@@ -49,15 +49,15 @@ public class InstanceManager
             {
                 if (request.type == "start")
                 {
-                    Monitor.Enter(lockObj);
+                    Monitor.Enter(_lock);
                     if (shuttingDown)
                     {
-                        Monitor.Exit(lockObj);
+                        Monitor.Exit(_lock);
                         return null;
                     }
 
                     runningInstanceCount += 1;
-                    Monitor.Exit(lockObj);
+                    Monitor.Exit(_lock);
 
                     StartRequest startRequest;
                     try
@@ -98,9 +98,9 @@ public class InstanceManager
 
                         sendEventBusMessage("stopped", instance.instanceId);
 
-                        Monitor.Enter(lockObj);
+                        Monitor.Enter(_lock);
                         runningInstanceCount -= 1;
-                        Monitor.Exit(lockObj);
+                        Monitor.Exit(_lock);
                     }).Start();
 
                     return instanceId;
@@ -156,13 +156,13 @@ public class InstanceManager
     {
         requestHandler.close();
 
-        Monitor.Enter(lockObj);
+        Monitor.Enter(_lock);
         shuttingDown = true;
         Log.Information($"Shutdown signal received, no new buildplate instances will be started, waiting for {runningInstanceCount} instances to finish");
         while (runningInstanceCount > 0)
         {
             int runningInstanceCount = this.runningInstanceCount;
-            Monitor.Exit(lockObj);
+            Monitor.Exit(_lock);
 
             try
             {
@@ -173,12 +173,12 @@ public class InstanceManager
                 // empty
             }
 
-            Monitor.Enter(lockObj);
+            Monitor.Enter(_lock);
             if (this.runningInstanceCount != runningInstanceCount)
                 Log.Information($"Waiting for {this.runningInstanceCount} instances to finish");
         }
 
-        Monitor.Exit(lockObj);
+        Monitor.Exit(_lock);
 
         publisher.close();
     }
