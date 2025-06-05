@@ -1,4 +1,5 @@
 ﻿using Serilog;
+using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -39,15 +40,15 @@ public class Starter
         this.connectorPluginJar = new FileInfo(connectorPluginJar);
     }
 
-    public Instance? startInstance(string instanceId, string playerId, string buildplateId, bool survival, bool night)
+    public Instance? startInstance(string instanceId, string playerId, string buildplateId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType)
     {
-        DirectoryInfo? baseDir = this.createInstanceBaseDir(instanceId);
+        DirectoryInfo? baseDir = createInstanceBaseDir(instanceId);
         if (baseDir == null)
             return null;
 
         int port = findPort(portsInUse, BASE_PORT);
         int serverInternalPort = findPort(serverInternalPortsInUse, SERVER_INTERNAL_BASE_PORT);
-        Instance instance = Instance.run(eventBusClient, playerId, buildplateId, instanceId, survival, night, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionString);
+        Instance instance = Instance.run(eventBusClient, playerId, buildplateId, instanceId, survival, night, saveEnabled, inventoryType, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionString);
         new Thread(() =>
         {
             instance.waitForShutdown();

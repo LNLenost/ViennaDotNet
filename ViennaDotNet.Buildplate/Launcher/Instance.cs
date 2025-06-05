@@ -17,9 +17,9 @@ public class Instance
 {
     private const int HOST_PLAYER_CONNECT_TIMEOUT = 20000;
 
-    public static Instance run(EventBusClient eventBusClient, string playerId, string buildplateId, string instanceId, bool survival, bool night, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
+    public static Instance run(EventBusClient eventBusClient, string playerId, string buildplateId, string instanceId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
     {
-        Instance instance = new Instance(eventBusClient, playerId, buildplateId, instanceId, survival, night, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionstring);
+        Instance instance = new Instance(eventBusClient, playerId, buildplateId, instanceId, survival, night, saveEnabled, inventoryType, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionstring);
 
         new Thread(instance.run)
         {
@@ -36,6 +36,8 @@ public class Instance
     public readonly string instanceId;
     private readonly bool survival;
     private readonly bool night;
+    private readonly bool saveEnabled;
+    private readonly InventoryType inventoryType;
 
     public readonly string publicAddress;
     public readonly int port;
@@ -47,14 +49,14 @@ public class Instance
     private readonly string fabricJarName;
     private readonly FileInfo connectorPluginJar;
     private readonly DirectoryInfo baseDir;
-    private readonly string eventBusConnectionString;
+    private readonly string eventBusQueueName;
+    private readonly string connectorPluginArgString;
 
     private Thread thread;
     private readonly TaskCompletionSource readyFuture = new TaskCompletionSource();
 
     private RequestSender? requestSender = null;
 
-    private readonly string eventBusQueueName;
     private Subscriber? subscriber = null;
     private RequestHandler? requestHandler = null;
 
@@ -63,11 +65,11 @@ public class Instance
     private ConsoleProcess? serverProcess = null;
     private ConsoleProcess? bridgeProcess = null;
     private bool shuttingDown = false;
-    private readonly Lock subprocessLock = new();
+    private readonly object subprocessLock = new();
 
     private volatile bool hostPlayerConnected = false;
 
-    private Instance(EventBusClient eventBusClient, string playerId, string buildplateId, string instanceId, bool survival, bool night, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
+    private Instance(EventBusClient eventBusClient, string playerId, string buildplateId, string instanceId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
     {
         this.eventBusClient = eventBusClient;
 
@@ -76,6 +78,8 @@ public class Instance
         this.instanceId = instanceId;
         this.survival = survival;
         this.night = night;
+        this.saveEnabled = saveEnabled;
+        this.inventoryType = inventoryType;
 
         this.publicAddress = publicAddress;
         this.port = port;
@@ -87,9 +91,8 @@ public class Instance
         this.fabricJarName = fabricJarName;
         this.connectorPluginJar = connectorPluginJar;
         this.baseDir = baseDir;
-        this.eventBusConnectionString = eventBusConnectionstring;
-
         this.eventBusQueueName = "buildplate_" + this.instanceId;
+        this.connectorPluginArgString = JsonConvert.SerializeObject(new ConnectorPluginArg(eventBusConnectionstring, this.eventBusQueueName, saveEnabled, inventoryType));
     }
 
     private void run()
@@ -98,7 +101,7 @@ public class Instance
 
         try
         {
-            Log.Information($"Starting for buildplate {buildplateId} player {playerId}");
+            Log.Information($"Starting for buildplate {buildplateId} player {playerId} (survival = {survival}, saveEnabled = {saveEnabled}, inventoryType = {inventoryType})");
             Log.Information($"Using port {port} internal port {serverInternalPort}");
 
             requestSender = eventBusClient.addRequestSender();
@@ -298,7 +301,7 @@ public class Instance
                         if (!hostPlayerConnected && playerConnectedRequest.uuid != playerId)
                         {
                             Log.Information($"Rejecting player connection for player {playerConnectedRequest.uuid} because the host player must connect first");
-                            return new PlayerConnectedResponse(false);
+                            return new PlayerConnectedResponse(false, null);
                         }
 
                         PlayerConnectedResponse? playerConnectedResponse = sendEventBusRequest<PlayerConnectedResponse>("playerConnected", playerConnectedRequest, true).Result;
@@ -513,7 +516,7 @@ public class Instance
             .Append($"server-port={serverInternalPort}\n")
             .Append($"fountain-connector-plugin-jar={connectorPluginJar.FullName.Replace('\\', '/')}\n")
             .Append("fountain-connector-plugin-class=micheal65536.vienna.buildplate.connector.plugin.ViennaConnectorPlugin\n")
-            .Append($"fountain-connector-plugin-arg={eventBusConnectionString}/{eventBusQueueName}\n")
+            .Append($"fountain-connector-plugin-arg={connectorPluginArgString}\n")
             .Append($"gamemode={(survival ? "survival" : "creative")}\n")
             .ToString();
         File.WriteAllText(Path.Combine(workDir.FullName, "server.properties"), serverProperties);
@@ -861,7 +864,7 @@ public class Instance
                 "-serverPort", serverInternalPort.ToString(),
                 "-connectorPluginJar", connectorPluginJar.FullName,
                 "-connectorPluginClass", "micheal65536.vienna.buildplate.connector.plugin.ViennaConnectorPlugin",
-                "-connectorPluginArg", eventBusConnectionString + "/" + eventBusQueueName
+                "-connectorPluginArg", connectorPluginArgString,
             ]);
 
             Log.Information($"Bridge process started, PID {bridgeProcess.Id}");

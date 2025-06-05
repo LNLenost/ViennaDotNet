@@ -278,8 +278,56 @@ public sealed class BuildplateInstanceRequestHandler
     {
         // TODO: check join code etc.
 
+        BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
+
+        if (instanceInfo is null)
+        {
+            return null;
+        }
+
+        InventoryResponse? initialInventoryContents;
+        switch (instanceInfo.type)
+        {
+            case BuildplateInstancesManager.InstanceType.BUILD:
+                {
+                    initialInventoryContents = null;
+                }
+
+                break;
+            case BuildplateInstancesManager.InstanceType.PLAY:
+                {
+                    EarthDB.Results results = new EarthDB.Query(false)
+                        .Get("inventory", playerConnectedRequest.uuid, typeof(Inventory))
+                        .Get("hotbar", playerConnectedRequest.uuid, typeof(Hotbar))
+                        .Execute(earthDB);
+
+                    Inventory inventory = (Inventory)results.Get("inventory").Value;
+                    Hotbar hotbar = (Hotbar)results.Get("hotbar").Value;
+
+                    initialInventoryContents = new InventoryResponse(
+                        [.. Enumerable.Concat(
+                            inventory.getStackableItems()
+                                .Select(item => new InventoryResponse.Item(item.id, item.count, null, 0)),
+                            inventory.getNonStackableItems()
+                                .SelectMany(item => item.instances
+                                    .Select(instance => new InventoryResponse.Item(item.id, 1, instance.instanceId, instance.wear)))
+                        ).Where(item => item.count > 0)],
+                        [.. hotbar.items.Select(item => item is { count: > 0 } ? new InventoryResponse.HotbarItem(item.uuid, item.count, item.instanceId) : null)]
+                    );
+                }
+                break;
+            default:
+                {
+                    // shouldn't happen, safe default
+                    initialInventoryContents = new InventoryResponse([], new InventoryResponse.HotbarItem[7]);
+                }
+
+                break;
+        }
+
         PlayerConnectedResponse playerConnectedResponse = new PlayerConnectedResponse(
-            true
+            true,
+            initialInventoryContents
         );
 
         return playerConnectedResponse;

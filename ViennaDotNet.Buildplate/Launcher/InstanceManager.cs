@@ -1,5 +1,7 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Serilog;
+using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -14,14 +16,21 @@ public class InstanceManager
     private readonly RequestHandler requestHandler;
     private int runningInstanceCount = 0;
     private bool shuttingDown = false;
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    private enum InstanceType
+    {
+        BUILD,
+        PLAY,
+    }
 
     private sealed record StartRequest(
         string instanceId,
         string playerId,
         string buildplateId,
-        bool survival,
-        bool night
+        bool night,
+        InstanceType type
     );
 
     private sealed record StartNotification(
@@ -29,7 +38,8 @@ public class InstanceManager
         string playerId,
         string buildplateId,
         string address,
-        int port
+        int port,
+        InstanceType type
     );
 
     private sealed record PreviewRequest(
@@ -73,7 +83,14 @@ public class InstanceManager
                     string instanceId = U.RandomUuid().ToString();
                     Log.Information($"Starting buildplate instance {instanceId} for player {startRequest.playerId} buildplate {startRequest.buildplateId}");
 
-                    Instance? instance = starter.startInstance(instanceId, startRequest.playerId, startRequest.buildplateId, startRequest.survival, startRequest.night);
+                    var (survival, saveEnabled, inventoryType) = startRequest.type switch
+                    {
+                        InstanceType.BUILD => (false, true, InventoryType.SYNCED),
+                        InstanceType.PLAY => (true, false, InventoryType.DISCARD),
+                        _ => (false, false, InventoryType.DISCARD),
+                    };
+
+                    Instance? instance = starter.startInstance(instanceId, startRequest.playerId, startRequest.buildplateId, survival, startRequest.night, saveEnabled, inventoryType);
                     if (instance == null)
                     {
                         Log.Error($"Error starting buildplate instance {instanceId}");
@@ -85,7 +102,8 @@ public class InstanceManager
                         startRequest.playerId,
                         startRequest.buildplateId,
                         instance.publicAddress,
-                        instance.port
+                        instance.port,
+                        startRequest.type
                     ));
 
                     new Thread(() =>

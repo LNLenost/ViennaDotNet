@@ -377,13 +377,10 @@ public sealed class EarthDB : IDisposable
                 return value;
         }
 
-        public record Result(object Value, int version)
-        {
-        }
+        public record Result(object Value, int version);
+
         public record GenericResult<T>(T GValue, int version)
-            : Result(GValue!, version)
-        {
-        }
+            : Result(GValue!, version);
     }
 
     public class DatabaseException : Exception

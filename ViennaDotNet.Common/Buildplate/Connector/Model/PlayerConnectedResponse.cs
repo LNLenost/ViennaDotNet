@@ -1,6 +1,8 @@
-﻿namespace ViennaDotNet.Buildplate.Connector.Model;
+﻿using ViennaDotNet.Common.Buildplate.Connector.Model;
 
-public record PlayerConnectedResponse(
-    bool accepted
-)
-{ }
+namespace ViennaDotNet.Buildplate.Connector.Model;
+
+public sealed record PlayerConnectedResponse(
+    bool accepted,
+    InventoryResponse? initialInventoryContents
+);

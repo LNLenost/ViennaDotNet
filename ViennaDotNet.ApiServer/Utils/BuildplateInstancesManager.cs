@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Serilog;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
@@ -13,12 +14,13 @@ public sealed class BuildplateInstancesManager
 
     private readonly Dictionary<string, TaskCompletionSource<bool>?> pendingInstances = [];
     private readonly Dictionary<string, InstanceInfo> instances = [];
+    private readonly Dictionary<string, HashSet<string>> instancesByBuildplateId = [];
 
     public BuildplateInstancesManager(EventBusClient eventBusClient)
     {
         this.eventBusClient = eventBusClient;
         this.subscriber = eventBusClient.addSubscriber("buildplates", new Subscriber.SubscriberListener(
-            _event => handleEvent(_event),
+            handleEvent,
             () =>
             {
                 Log.Fatal("Buildplates event bus subscriber error");
@@ -28,11 +30,29 @@ public sealed class BuildplateInstancesManager
         this.requestSender = eventBusClient.addRequestSender();
     }
 
-    public async Task<string?> startBuildplateInstance(string playerId, string buildplateId, bool night)
+    public async Task<string?> requestBuildplateInstance(string playerId, string buildplateId, InstanceType type, bool night)
     {
-        Log.Information($"Requesting buildplate instance for player {playerId} buildplate {buildplateId}");
+        Log.Information($"Finding buildplate instance for player {playerId} buildplate {buildplateId} type {type}");
 
-        string? instanceId = await requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, buildplateId, false, night))).Task;
+        lock (instances)
+        {
+            HashSet<string>? instanceIds = instancesByBuildplateId.GetOrDefault(buildplateId);
+            if (instanceIds is not null)
+            {
+                foreach (string loopInstanceId in instanceIds)
+                {
+                    InstanceInfo? instanceInfo = instances.GetOrDefault(loopInstanceId);
+                    if (instanceInfo is not null && instanceInfo.playerId == playerId && instanceInfo.type == type)
+                    {
+                        Log.Information($"Found existing buildplate instance {loopInstanceId}");
+                        return loopInstanceId;
+                    }
+                }
+            }
+        }
+
+        Log.Information("Did not find existing instance, starting new instance");
+        string? instanceId = await requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, buildplateId, night, type))).Task;
         if (instanceId == null)
         {
             Log.Error("Buildplate start request was rejected/ignored");
@@ -94,6 +114,7 @@ public sealed class BuildplateInstancesManager
                         {
                             Log.Information($"Buildplate instance {startNotification.instanceId} has started");
                             instances[startNotification.instanceId] = new InstanceInfo(
+                                startNotification.type,
                                 startNotification.instanceId,
                                 startNotification.playerId,
                                 startNotification.buildplateId,
@@ -101,6 +122,8 @@ public sealed class BuildplateInstancesManager
                                 startNotification.port,
                                 false
                             );
+
+                            instancesByBuildplateId.ComputeIfAbsent(startNotification.buildplateId, buildplateId => [])!.Add(startNotification.instanceId);
                         }
 
                         lock (pendingInstances)
@@ -126,6 +149,7 @@ public sealed class BuildplateInstancesManager
                         {
                             Log.Information($"Buildplate instance {instanceId} is ready");
                             instances[instanceId] = new InstanceInfo(
+                                instanceInfo.type,
                                 instanceInfo.instanceId,
                                 instanceInfo.playerId,
                                 instanceInfo.buildplateId,
@@ -143,8 +167,14 @@ public sealed class BuildplateInstancesManager
                     string instanceId = @event.data;
                     lock (instances)
                     {
-                        if (instances.JavaRemove(instanceId) != null)
+                        var instanceInfo = instances.JavaRemove(instanceId);
+                        if (instanceInfo != null)
+                        {
                             Log.Information($"Buildplate instance {instanceId} has stopped");
+
+                            var instanceIds = instancesByBuildplateId.GetOrDefault(instanceInfo.buildplateId);
+                            instanceIds?.Remove(instanceInfo.instanceId);
+                        }
                     }
                 }
 
@@ -155,8 +185,8 @@ public sealed class BuildplateInstancesManager
     private sealed record StartRequest(
         string playerId,
         string buildplateId,
-        bool survival,
-        bool night
+        bool night,
+        InstanceType type
     );
 
     private sealed record PreviewRequest(
@@ -169,10 +199,20 @@ public sealed class BuildplateInstancesManager
         string playerId,
         string buildplateId,
         string address,
-        int port
+        int port,
+        InstanceType type
     );
 
+    [JsonConverter(typeof(StringEnumConverter))]
+    public enum InstanceType
+    {
+        BUILD,
+        PLAY,
+    }
+
     public sealed record InstanceInfo(
+        InstanceType type,
+
         string instanceId,
 
         string playerId,

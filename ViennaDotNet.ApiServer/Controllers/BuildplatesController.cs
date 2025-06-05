@@ -82,42 +82,31 @@ public class BuildplatesController : ControllerBase
     }
 
     [HttpPost("multiplayer/buildplate/{buildplateId}/instances")]
-    public async Task<IActionResult> CreateInstance(string buildplateId, CancellationToken cancellationToken)
+    public Task<IActionResult> CreateBuildInstance(string buildplateId, CancellationToken cancellationToken)
     {
+        // TODO: coordinates etc.
+
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
-            return BadRequest();
-
-        Buildplates.Buildplate? buildplate;
-        try
         {
-            EarthDB.Results results = await new EarthDB.Query(false)
-                .Get("buildplates", playerId, typeof(Buildplates))
-                .ExecuteAsync(earthDB, cancellationToken);
-            buildplate = ((Buildplates)results.Get("buildplates").Value).getBuildplate(buildplateId);
-        }
-        catch (EarthDB.DatabaseException ex)
-        {
-            throw new ServerErrorException(ex);
+            return Task.FromResult((IActionResult)BadRequest());
         }
 
-        if (buildplate is null)
-            return BadRequest();
+        return getNewBuildplateInstanceResponse(playerId, buildplateId, BuildplateInstancesManager.InstanceType.BUILD, cancellationToken);
+    }
 
-        string? instanceId = await buildplateInstancesManager.startBuildplateInstance(playerId, buildplateId, buildplate.night);
+    [HttpPost("multiplayer/buildplate/{buildplateId}/play/instances")]
+    public Task<IActionResult> CreatePlayInstance(string buildplateId, CancellationToken cancellationToken)
+    {
+        // TODO: coordinates etc.
 
-        if (instanceId is null)
-            return BadRequest();
+        string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(playerId))
+        {
+            return Task.FromResult((IActionResult)BadRequest());
+        }
 
-        BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
-
-        if (instanceInfo is null)
-            return BadRequest();
-
-        BuildplateInstance buildplateInstance = instanceInfoToApiResponse(buildplate, instanceInfo);
-
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
-        return Content(resp, "application/json");
+        return getNewBuildplateInstanceResponse(playerId, buildplateId, BuildplateInstancesManager.InstanceType.PLAY, cancellationToken);
     }
 
     // TODO: should we restrict this to matching player ID?
@@ -174,8 +163,55 @@ public class BuildplatesController : ControllerBase
         return Content(resp, "application/json");
     }
 
+    private async Task<IActionResult> getNewBuildplateInstanceResponse(string playerId, string buildplateId, BuildplateInstancesManager.InstanceType type, CancellationToken cancellationToken)
+    {
+        Buildplates.Buildplate? buildplate;
+        try
+
+        {
+            EarthDB.Results results = await new EarthDB.Query(false)
+                .Get("buildplates", playerId, typeof(Buildplates))
+                .ExecuteAsync(earthDB, cancellationToken);
+
+            buildplate = ((Buildplates)results.Get("buildplates").Value).getBuildplate(buildplateId);
+        }
+        catch (EarthDB.DatabaseException exception)
+        {
+            throw new ServerErrorException(exception);
+        }
+
+        if (buildplate is null)
+        {
+            return NotFound();
+        }
+
+        string? instanceId = await buildplateInstancesManager.requestBuildplateInstance(playerId, buildplateId, type, buildplate.night);
+        if (instanceId is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+
+        BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
+        if (instanceInfo is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+
+        BuildplateInstance buildplateInstance = instanceInfoToApiResponse(buildplate, instanceInfo);
+
+        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
+        return Content(resp, "application/json");
+    }
+
     private static BuildplateInstance instanceInfoToApiResponse(Buildplates.Buildplate buildplate, BuildplateInstancesManager.InstanceInfo instanceInfo)
     {
+        bool fullsize = instanceInfo.type switch
+        {
+            BuildplateInstancesManager.InstanceType.BUILD => false,
+            BuildplateInstancesManager.InstanceType.PLAY => true,
+            _ => false,
+        };
+
         return new BuildplateInstance(
             instanceInfo.instanceId,
             "00000000-0000-0000-0000-000000000000",
@@ -197,31 +233,12 @@ public class BuildplatesController : ControllerBase
                 "CK06Yzm2",    // TODO
                 new Dimension(buildplate.size, buildplate.size),
                 new Offset(0, buildplate.offset, 0),
-                buildplate.scale,
-                false,    // TODO
+                !fullsize ? buildplate.scale : 1,
+                fullsize,
                 BuildplateInstance.GameplayMetadata.GameplayMode.BUILDPLATE,    // TODO
                 SurfaceOrientation.HORIZONTAL,
                 null,
                 null,    // TODO
-                [
-                    BuildplateInstance.GameplayMetadata.ShutdownBehavior.ALL_PLAYERS_QUIT,
-                    BuildplateInstance.GameplayMetadata.ShutdownBehavior.HOST_PLAYER_QUITS
-                ],
-                new BuildplateInstance.GameplayMetadata.SnapshotOptions(
-                    BuildplateInstance.GameplayMetadata.SnapshotOptions.SnapshotWorldStorage.BUILDPLATE,
-                    new BuildplateInstance.GameplayMetadata.SnapshotOptions.SaveState(
-                            false,
-                            false,
-                            false,
-                            true,
-                            true,
-                            true
-                        ),
-                    BuildplateInstance.GameplayMetadata.SnapshotOptions.SnapshotTriggerConditions.NONE,
-                    [
-                        BuildplateInstance.GameplayMetadata.SnapshotOptions.TriggerCondition.INTERVAL, BuildplateInstance.GameplayMetadata.SnapshotOptions.TriggerCondition.PLAYER_EXITS ],
-                    TimeFormatter.FormatDuration(30 * 1000)
-                ),
                 []
             ),
             "776932eeeb69",
