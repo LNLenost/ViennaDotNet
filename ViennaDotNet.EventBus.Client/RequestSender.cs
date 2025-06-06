@@ -8,7 +8,7 @@ public sealed class RequestSender
     private readonly EventBusClient client;
     private readonly int channelId;
 
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
 
     private bool _closed = false;
 

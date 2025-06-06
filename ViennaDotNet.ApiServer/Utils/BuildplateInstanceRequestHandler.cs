@@ -1,11 +1,14 @@
 ﻿using Newtonsoft.Json;
 using Serilog;
+using System.Diagnostics;
 using System.Text;
 using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Buildplate.Connector.Model;
+using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Common;
+using ViennaDotNet.DB.Models.Global;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.EventBus.Client;
 using ViennaDotNet.ObjectStore.Client;
@@ -41,16 +44,26 @@ public sealed class BuildplateInstanceRequestHandler
                         case "load":
                             {
                                 BuildplateLoadRequest? buildplateLoadRequest = readRawRequest<BuildplateLoadRequest>(request.data);
-                                if (buildplateLoadRequest == null)
+                                if (buildplateLoadRequest is null)
                                     return null;
 
                                 BuildplateLoadResponse? buildplateLoadResponse = handleLoad(buildplateLoadRequest.playerId, buildplateLoadRequest.buildplateId);
-                                return buildplateLoadResponse != null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
+                                return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
+                            }
+                        case "loadShared":
+                            {
+                                SharedBuildplateLoadRequest? sharedBuildplateLoadRequest = readRawRequest<SharedBuildplateLoadRequest>(request.data);
+                                if (sharedBuildplateLoadRequest is null)
+                                {
+                                    return null;
+                                }
+                                BuildplateLoadResponse buildplateLoadResponse = handleLoadShared(sharedBuildplateLoadRequest.sharedBuildplateId);
+                                return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
                             }
                         case "saved":
                             {
                                 RequestWithBuildplateId<WorldSavedMessage>? requestWithBuildplateId = readRequest<WorldSavedMessage>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 return handleSaved(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request.dataBase64, request.timestamp) ? "" : null;
@@ -59,7 +72,7 @@ public sealed class BuildplateInstanceRequestHandler
                             {
                                 Log.Debug("RequestHandler playerConnected");
                                 RequestWithBuildplateId<PlayerConnectedRequest>? requestWithBuildplateId = readRequest<PlayerConnectedRequest>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 PlayerConnectedResponse? playerConnectedResponse = handlePlayerConnected(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
@@ -68,7 +81,7 @@ public sealed class BuildplateInstanceRequestHandler
                         case "playerDisconnected":
                             {
                                 RequestWithBuildplateId<PlayerDisconnectedRequest>? requestWithBuildplateId = readRequest<PlayerDisconnectedRequest>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 PlayerDisconnectedResponse? playerDisconnectedResponse = handlePlayerDisconnected(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
@@ -77,16 +90,16 @@ public sealed class BuildplateInstanceRequestHandler
                         case "getInventory":
                             {
                                 RequestWithBuildplateId<string>? requestWithBuildplateId = readRequest<string>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 InventoryResponse? inventoryResponse = handleGetInventory(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
-                                return inventoryResponse != null ? JsonConvert.SerializeObject(inventoryResponse) : null;
+                                return inventoryResponse is not null ? JsonConvert.SerializeObject(inventoryResponse) : null;
                             }
                         case "inventoryAdd":
                             {
                                 RequestWithBuildplateId<InventoryAddItemMessage>? requestWithBuildplateId = readRequest<InventoryAddItemMessage>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 return handleInventoryAdd(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request, request.timestamp) ? "" : null;
@@ -94,16 +107,16 @@ public sealed class BuildplateInstanceRequestHandler
                         case "inventoryRemove":
                             {
                                 RequestWithBuildplateId<InventoryRemoveItemRequest>? requestWithBuildplateId = readRequest<InventoryRemoveItemRequest>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 object response = handleInventoryRemove(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
-                                return response != null ? JsonConvert.SerializeObject(response) : null;
+                                return response is not null ? JsonConvert.SerializeObject(response) : null;
                             }
                         case "inventoryUpdateWear":
                             {
                                 RequestWithBuildplateId<InventoryUpdateItemWearMessage>? requestWithBuildplateId = readRequest<InventoryUpdateItemWearMessage>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 return handleInventoryUpdateWear(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request) ? "" : null;
@@ -111,7 +124,7 @@ public sealed class BuildplateInstanceRequestHandler
                         case "inventorySetHotbar":
                             {
                                 RequestWithBuildplateId<InventorySetHotbarMessage>? requestWithBuildplateId = readRequest<InventorySetHotbarMessage>(request.data);
-                                if (requestWithBuildplateId == null)
+                                if (requestWithBuildplateId is null)
                                     return null;
 
                                 return handleInventorySetHotbar(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request) ? "" : null;
@@ -139,6 +152,10 @@ public sealed class BuildplateInstanceRequestHandler
         string buildplateId
     );
 
+    private sealed record SharedBuildplateLoadRequest(
+        string sharedBuildplateId
+    );
+
     private sealed record BuildplateLoadResponse(
         string serverDataBase64
     );
@@ -154,10 +171,37 @@ public sealed class BuildplateInstanceRequestHandler
         if (buildplate == null)
             return null;
 
+        // TODO: when event bus code is made async await here
         byte[]? serverData = (byte[]?)objectStoreClient.get(buildplate.serverDataObjectId).Task.Result;
         if (serverData == null)
         {
             Log.Error($"Data object {buildplate.serverDataObjectId} for buildplate {buildplateId} could not be loaded from object store");
+            return null;
+        }
+
+        string serverDataBase64 = Convert.ToBase64String(serverData);
+
+        return new BuildplateLoadResponse(serverDataBase64);
+    }
+
+    private BuildplateLoadResponse? handleLoadShared(string sharedBuildplateId)
+    {
+        EarthDB.Results results = new EarthDB.Query(false)
+                .Get("sharedBuildplates", "", typeof(SharedBuildplates))
+                .Execute(earthDB);
+        SharedBuildplates sharedBuildplates = (SharedBuildplates)results.Get("sharedBuildplates").Value;
+
+        SharedBuildplates.SharedBuildplate? sharedBuildplate = sharedBuildplates.getSharedBuildplate(sharedBuildplateId);
+        if (sharedBuildplate is null)
+        {
+            return null;
+        }
+
+        // TODO: when event bus code is made async await here
+        byte[]? serverData = objectStoreClient.get(sharedBuildplate.serverDataObjectId).Task.Result as byte[];
+        if (serverData is null)
+        {
+            Log.Error($"Data object {sharedBuildplate.serverDataObjectId} for shared buildplate {sharedBuildplateId} could not be loaded from object store");
             return null;
         }
 
@@ -189,6 +233,7 @@ public sealed class BuildplateInstanceRequestHandler
         if (preview == null)
             Log.Warning("Could not generate preview for buildplate");
 
+        // TODO: when event bus code is made async await here
         string? serverDataObjectId = (string?)objectStoreClient.store(serverData).Task.Result;
         if (serverDataObjectId == null)
         {
@@ -199,6 +244,7 @@ public sealed class BuildplateInstanceRequestHandler
         string? previewObjectId;
         if (preview != null)
         {
+            // TODO: when event bus code is made async await here
             previewObjectId = (string?)objectStoreClient.store(Encoding.ASCII.GetBytes(preview)).Task.Result;
             if (previewObjectId == null)
                 Log.Warning($"Could not store new preview object for buildplate {buildplateId} in object store");
@@ -315,7 +361,47 @@ public sealed class BuildplateInstanceRequestHandler
                         [.. hotbar.items.Select(item => item is { count: > 0 } ? new InventoryResponse.HotbarItem(item.uuid, item.count, item.instanceId) : null)]
                     );
                 }
+
                 break;
+            case BuildplateInstancesManager.InstanceType.SHARED_BUILD or BuildplateInstancesManager.InstanceType.SHARED_PLAY:
+
+                {
+                    EarthDB.Results results = new EarthDB.Query(false)
+                        .Get("sharedBuildplates", "", typeof(SharedBuildplates))
+                        .Execute(earthDB);
+                    SharedBuildplates sharedBuildplates = (SharedBuildplates)results.Get("sharedBuildplates").Value;
+                    SharedBuildplates.SharedBuildplate? sharedBuildplate = sharedBuildplates.getSharedBuildplate(instanceInfo.buildplateId);
+                    if (sharedBuildplate is null)
+                    {
+                        return null;
+                    }
+
+                    initialInventoryContents = new InventoryResponse(
+                        [.. Enumerable.Concat(
+                            sharedBuildplate.hotbar
+                                .Where(item => item is { count: > 0, instanceId: null })
+                                .Collect(() => new Dictionary<string, int>(), (hashMap, hotbarItem) =>
+                                {
+                                    Debug.Assert(hotbarItem is not null);
+
+                                    hashMap[hotbarItem.uuid] = hashMap.GetOrDefault(hotbarItem.uuid, 0) + hotbarItem.count;
+                                }, (hashMap1, hashMap2) =>
+                                {
+                                    foreach (var (uuid, count) in hashMap2)
+                                    {
+                                        hashMap1[uuid] = hashMap1.GetOrDefault(uuid) + count;
+                                    }
+                                })
+                                .Select(entry => new InventoryResponse.Item(entry.Key, entry.Value, null, 0)),
+                            sharedBuildplate.hotbar
+                                .Where(item => item is { count: > 0, instanceId: not null })
+                                .Select(item => new InventoryResponse.Item(item!.uuid, 1, item.instanceId, item.wear))
+                        )],
+                        [.. sharedBuildplate.hotbar.Select(item => item is { count: > 0 } ? new InventoryResponse.HotbarItem(item.uuid, item.count, item.instanceId) : null)]
+                    );
+                }
+                break;
+
             default:
                 {
                     // shouldn't happen, safe default

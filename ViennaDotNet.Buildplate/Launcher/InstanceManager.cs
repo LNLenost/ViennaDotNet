@@ -23,6 +23,8 @@ public class InstanceManager
     {
         BUILD,
         PLAY,
+        SHARED_BUILD,
+        SHARED_PLAY,
     }
 
     private sealed record StartRequest(
@@ -83,14 +85,16 @@ public class InstanceManager
                     string instanceId = U.RandomUuid().ToString();
                     Log.Information($"Starting buildplate instance {instanceId} for player {startRequest.playerId} buildplate {startRequest.buildplateId}");
 
-                    var (survival, saveEnabled, inventoryType) = startRequest.type switch
+                    var (survival, saveEnabled, inventoryType, fromShared) = startRequest.type switch
                     {
-                        InstanceType.BUILD => (false, true, InventoryType.SYNCED),
-                        InstanceType.PLAY => (true, false, InventoryType.DISCARD),
-                        _ => (false, false, InventoryType.DISCARD),
+                        InstanceType.BUILD => (false, true, InventoryType.SYNCED, false),
+                        InstanceType.PLAY => (true, false, InventoryType.DISCARD, false),
+                        InstanceType.SHARED_BUILD => (false, false, InventoryType.DISCARD, true),
+                        InstanceType.SHARED_PLAY => (true, false, InventoryType.DISCARD, true),
+                        _ => (false, false, InventoryType.DISCARD, false),
                     };
 
-                    Instance? instance = starter.startInstance(instanceId, startRequest.playerId, startRequest.buildplateId, survival, startRequest.night, saveEnabled, inventoryType);
+                    Instance? instance = starter.startInstance(instanceId, startRequest.playerId, startRequest.buildplateId, fromShared, survival, startRequest.night, saveEnabled, inventoryType);
                     if (instance == null)
                     {
                         Log.Error($"Error starting buildplate instance {instanceId}");

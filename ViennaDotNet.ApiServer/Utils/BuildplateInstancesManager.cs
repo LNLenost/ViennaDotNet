@@ -208,6 +208,8 @@ public sealed class BuildplateInstancesManager
     {
         BUILD,
         PLAY,
+        SHARED_BUILD,
+        SHARED_PLAY,
     }
 
     public sealed record InstanceInfo(

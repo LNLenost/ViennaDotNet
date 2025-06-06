@@ -40,7 +40,7 @@ public class Starter
         this.connectorPluginJar = new FileInfo(connectorPluginJar);
     }
 
-    public Instance? startInstance(string instanceId, string playerId, string buildplateId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType)
+    public Instance? startInstance(string instanceId, string playerId, string buildplateId, bool fromShared, bool survival, bool night, bool saveEnabled, InventoryType inventoryType)
     {
         DirectoryInfo? baseDir = createInstanceBaseDir(instanceId);
         if (baseDir == null)
@@ -48,7 +48,7 @@ public class Starter
 
         int port = findPort(portsInUse, BASE_PORT);
         int serverInternalPort = findPort(serverInternalPortsInUse, SERVER_INTERNAL_BASE_PORT);
-        Instance instance = Instance.run(eventBusClient, playerId, buildplateId, instanceId, survival, night, saveEnabled, inventoryType, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionString);
+        Instance instance = Instance.run(eventBusClient, playerId, buildplateId, fromShared, instanceId, survival, night, saveEnabled, inventoryType, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionString);
         new Thread(() =>
         {
             instance.waitForShutdown();

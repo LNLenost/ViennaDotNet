@@ -17,9 +17,9 @@ public class Instance
 {
     private const int HOST_PLAYER_CONNECT_TIMEOUT = 20000;
 
-    public static Instance run(EventBusClient eventBusClient, string playerId, string buildplateId, string instanceId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
+    public static Instance run(EventBusClient eventBusClient, string playerId, string buildplateId, bool fromShared, string instanceId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
     {
-        Instance instance = new Instance(eventBusClient, playerId, buildplateId, instanceId, survival, night, saveEnabled, inventoryType, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionstring);
+        Instance instance = new Instance(eventBusClient, playerId, buildplateId, fromShared, instanceId, survival, night, saveEnabled, inventoryType, publicAddress, port, serverInternalPort, javaCmd, fountainBridgeJar, serverTemplateDir, fabricJarName, connectorPluginJar, baseDir, eventBusConnectionstring);
 
         new Thread(instance.run)
         {
@@ -33,6 +33,7 @@ public class Instance
 
     private readonly string playerId;
     private readonly string buildplateId;
+    private readonly bool fromShared;
     public readonly string instanceId;
     private readonly bool survival;
     private readonly bool night;
@@ -69,12 +70,13 @@ public class Instance
 
     private volatile bool hostPlayerConnected = false;
 
-    private Instance(EventBusClient eventBusClient, string playerId, string buildplateId, string instanceId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
+    private Instance(EventBusClient eventBusClient, string playerId, string buildplateId, bool fromShared, string instanceId, bool survival, bool night, bool saveEnabled, InventoryType inventoryType, string publicAddress, int port, int serverInternalPort, string javaCmd, FileInfo fountainBridgeJar, DirectoryInfo serverTemplateDir, string fabricJarName, FileInfo connectorPluginJar, DirectoryInfo baseDir, string eventBusConnectionstring)
     {
         this.eventBusClient = eventBusClient;
 
         this.playerId = playerId;
         this.buildplateId = buildplateId;
+        this.fromShared = fromShared;
         this.instanceId = instanceId;
         this.survival = survival;
         this.night = night;
@@ -101,18 +103,31 @@ public class Instance
 
         try
         {
-            Log.Information($"Starting for buildplate {buildplateId} player {playerId} (survival = {survival}, saveEnabled = {saveEnabled}, inventoryType = {inventoryType})");
+            Log.Information($"Starting for {(fromShared ? "shared" : "")} buildplate {buildplateId} player {playerId} (survival = {survival}, saveEnabled = {saveEnabled}, inventoryType = {inventoryType})");
             Log.Information($"Using port {port} internal port {serverInternalPort}");
 
             requestSender = eventBusClient.addRequestSender();
 
             Log.Information("Setting up server");
 
-            BuildplateLoadResponse? buildplateLoadResponse = sendEventBusRequestRaw<BuildplateLoadResponse>("load", new BuildplateLoadRequest(playerId, buildplateId), true).Result;
-            if (buildplateLoadResponse == null)
+            BuildplateLoadResponse? buildplateLoadResponse;
+            if (!fromShared)
             {
-                Log.Error($"Could not load buildplate information for buildplate {buildplateId} player {playerId}");
-                return;
+                buildplateLoadResponse = sendEventBusRequestRaw<BuildplateLoadResponse>("load", new BuildplateLoadRequest(playerId, buildplateId), true).Result;
+                if (buildplateLoadResponse is null)
+                {
+                    Log.Error($"Could not load buildplate information for buildplate {buildplateId} player {playerId}");
+                    return;
+                }
+            }
+            else
+            {
+                buildplateLoadResponse = this.sendEventBusRequestRaw<BuildplateLoadResponse>("loadShared", new SharedBuildplateLoadRequest(buildplateId), true).Result;
+                if (buildplateLoadResponse == null)
+                {
+                    Log.Error("Could not load buildplate information for shared buildplate {buildplateId}");
+                    return;
+                }
             }
 
             byte[] serverData;
@@ -1014,6 +1029,10 @@ public class Instance
     private sealed record BuildplateLoadRequest(
         string playerId,
         string buildplateId
+    );
+
+    private record SharedBuildplateLoadRequest(
+        string sharedBuildplateId
     );
 
     private sealed record BuildplateLoadResponse(

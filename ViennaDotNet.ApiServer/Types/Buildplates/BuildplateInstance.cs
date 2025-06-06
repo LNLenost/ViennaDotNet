@@ -55,6 +55,8 @@ public record BuildplateInstance(
         public enum GameplayMode
         {
             [EnumMember(Value = "Buildplate")] BUILDPLATE,
+            [EnumMember(Value = "BuildplatePlay")] BUILDPLATE_PLAY,
+            [EnumMember(Value = "SharedBuildplatePlay")] SHARED_BUILDPLATE_PLAY,
             [EnumMember(Value = "Encounter")] ENCOUNTER
         }
     }
