@@ -53,7 +53,7 @@ public class ActiveTiles
 
     public ActiveTile[] getActiveTiles(long currentTime)
     {
-        return activeTiles.Values.Where(activeTile => currentTime < activeTile.latestActiveTime + ACTIVE_TILE_EXPIRY_TIME).ToArray();
+        return [.. activeTiles.Values.Where(activeTile => currentTime < activeTile.latestActiveTime + ACTIVE_TILE_EXPIRY_TIME)];
     }
 
     private void markTileActive(int tileX, int tileY, long currentTime)

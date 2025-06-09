@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
-using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.ObjectStore.Client;
 

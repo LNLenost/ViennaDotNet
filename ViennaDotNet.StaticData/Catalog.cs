@@ -1,9 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using Serilog;
-using System;
-using System.IO.Pipelines;
-using System.Xml.Linq;
 
 namespace ViennaDotNet.StaticData;
 
@@ -45,8 +41,8 @@ public sealed class Catalog
         {
             items = JsonConvert.DeserializeObject<Item[]>(File.ReadAllText(file));
 
-            HashSet<String> ids = [];
-            HashSet<String> names = [];
+            HashSet<string> ids = [];
+            HashSet<string> names = [];
             foreach (Item item in items)
             {
                 if (!ids.Add(item.id))
@@ -296,7 +292,7 @@ public sealed class Catalog
         {
             efficiencyCategories = JsonConvert.DeserializeObject<EfficiencyCategory[]>(File.ReadAllText(file));
 
-            HashSet<String> names = [];
+            HashSet<string> names = [];
             foreach (EfficiencyCategory efficiencyCategory in efficiencyCategories)
             {
                 if (!names.Add(efficiencyCategory.name))
@@ -330,8 +326,8 @@ public sealed class Catalog
         {
             groups = JsonConvert.DeserializeObject<JournalGroup[]>(File.ReadAllText(file));
 
-            HashSet<String> ids = [];
-            HashSet<String> names = [];
+            HashSet<string> ids = [];
+            HashSet<string> names = [];
             foreach (JournalGroup journalGroup in groups)
             {
                 if (!ids.Add(journalGroup.id))
@@ -383,8 +379,8 @@ public sealed class Catalog
             crafting = recipesCatalogFile.crafting;
             smelting = recipesCatalogFile.smelting;
 
-            HashSet<String> craftingIds = [];
-            HashSet<String> smeltingIds = [];
+            HashSet<string> craftingIds = [];
+            HashSet<string> smeltingIds = [];
             foreach (CraftingRecipe craftingRecipe in crafting)
             {
                 if (!craftingIds.Add(craftingRecipe.id))

@@ -1,6 +1,7 @@
-﻿using ViennaDotNet.ApiServer.Types.Catalog;
+﻿using System.Diagnostics;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Player.Workshop;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Utils;
 
@@ -8,7 +9,8 @@ public static class SmeltingCalculator
 {
     public static State calculateState(long currentTime, SmeltingSlot.ActiveJob activeJob, SmeltingSlot.Burning? burning, Catalog catalog)
     {
-        RecipesCatalog.SmeltingRecipe recipe = catalog.recipesCatalog.smelting.Where(smeltingRecipe => smeltingRecipe.id == activeJob.recipeId).First();
+        Catalog.RecipesCatalog.SmeltingRecipe? recipe = catalog.recipesCatalog.getSmeltingRecipe(activeJob.recipeId);
+        Debug.Assert(recipe is not null);
 
         int totalHeatRequired = recipe.heatRequired * activeJob.totalRounds;
         long totalCompletionTime = activeJob.startTime + calculateDurationForHeat(totalHeatRequired, burning, activeJob.addedFuel);
@@ -141,7 +143,7 @@ public static class SmeltingCalculator
             availableRounds,
             activeJob.totalRounds,
             input,
-            new State.OutputItem(recipe.output.itemId, recipe.output.quantity),
+            new State.OutputItem(recipe.output, 1),
             nextCompletionTime,
             totalCompletionTime,
             remainingAddedFuel,

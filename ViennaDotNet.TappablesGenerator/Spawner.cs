@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Serilog;
-using System;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -12,7 +11,7 @@ public class Spawner
 
     private readonly ActiveTiles activeTiles;
     private readonly TappableGenerator tappableGenerator;
-	private readonly EncounterGenerator encounterGenerator;
+    private readonly EncounterGenerator encounterGenerator;
     private readonly Publisher publisher;
 
     private readonly int maxTappableLifetimeIntervals;

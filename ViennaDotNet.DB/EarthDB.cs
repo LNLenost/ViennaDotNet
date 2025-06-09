@@ -72,7 +72,7 @@ public sealed class EarthDB : IDisposable
 
     public class Query
     {
-        private bool write;
+        private bool _write;
         private List<WriteObjectsEntry> writeObjects = [];
         private List<ReadObjectsEntry> readObjects = [];
         private List<ExtrasEntry> extras = [];
@@ -84,15 +84,15 @@ public sealed class EarthDB : IDisposable
 
         private sealed record ExtrasEntry(string name, object value);
 
-        public Query(bool _write)
+        public Query(bool write)
         {
-            write = _write;
+            _write = write;
         }
 
         #region methods
         public Query Update(string type, string id, object value)
         {
-            if (!write)
+            if (!_write)
                 throw new UnsupportedOperationException();
 
             writeObjects.Add(new WriteObjectsEntry(type, id, value));
@@ -128,8 +128,8 @@ public sealed class EarthDB : IDisposable
         {
             try
             {
-                using SqliteTransaction transaction = earthDB.transaction(write);
-                Results results = await executeInternalAsync(transaction, write, null, cancellationToken);
+                using SqliteTransaction transaction = earthDB.transaction(_write);
+                Results results = await executeInternalAsync(transaction, _write, null, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 if (transaction.Connection is not null)
                 {
@@ -148,8 +148,8 @@ public sealed class EarthDB : IDisposable
         {
             try
             {
-                using SqliteTransaction transaction = earthDB.transaction(write);
-                Results results = executeInternal(transaction, write, null);
+                using SqliteTransaction transaction = earthDB.transaction(_write);
+                Results results = executeInternal(transaction, _write, null);
                 transaction.Commit();
                 transaction.Connection?.Close();
                 return results;
@@ -162,7 +162,7 @@ public sealed class EarthDB : IDisposable
 
         private async Task<Results> executeInternalAsync(SqliteTransaction transaction, bool write, Dictionary<string, int?>? parentUpdates, CancellationToken cancellationToken)
         {
-            if (this.write && !write)
+            if (_write && !write)
             {
                 throw new UnsupportedOperationException();
             }
@@ -253,7 +253,7 @@ public sealed class EarthDB : IDisposable
 
         private Results executeInternal(SqliteTransaction transaction, bool write, Dictionary<string, int?>? parentUpdates)
         {
-            if (this.write && !write)
+            if (_write && !write)
                 throw new UnsupportedOperationException();
 
             Results results = new Results();
@@ -349,33 +349,22 @@ public sealed class EarthDB : IDisposable
         }
 
         public Result Get(string name)
-        {
-            if (!getValues.TryGetValue(name, out Result? value) || value is null)
-                throw new KeyNotFoundException();
-            else
-                return value;
-        }
+            => !getValues.TryGetValue(name, out Result? value) || value is null
+            ? throw new KeyNotFoundException()
+            : value;
 
         public GenericResult<T> GetGeneric<T>(string name)
-        {
-            if (!getValues.TryGetValue(name, out Result? value) || value is null)
-                throw new KeyNotFoundException();
-            else
-                return new GenericResult<T>((T)value.Value, value.version);
-        }
+            => !getValues.TryGetValue(name, out Result? value) || value is null
+                ? throw new KeyNotFoundException()
+                : new GenericResult<T>((T)value.Value, value.version);
 
         public Dictionary<string, int?> getUpdates()
-        {
-            return new Dictionary<string, int?>(updates);
-        }
+            => new Dictionary<string, int?>(updates);
 
         public object getExtra(string name)
-        {
-            if (!extras.TryGetValue(name, out object? value) || value is null)
-                throw new KeyNotFoundException();
-            else
-                return value;
-        }
+            => !extras.TryGetValue(name, out object? value) || value is null
+            ? throw new KeyNotFoundException()
+            : value;
 
         public record Result(object Value, int version);
 

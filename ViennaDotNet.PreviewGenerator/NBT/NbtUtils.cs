@@ -100,7 +100,7 @@ public static class NbtUtils
         return builder.ToString();
     }
 
-    private static readonly char[] HEX_CODE = "0123456789ABCDEF".ToArray();
+    private static readonly char[] HEX_CODE = [.. "0123456789ABCDEF"];
 
     public static string printHexBinary(byte[] data)
     {

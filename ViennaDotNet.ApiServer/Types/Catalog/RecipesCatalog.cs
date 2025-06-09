@@ -1,66 +1,53 @@
-﻿using static ViennaDotNet.ApiServer.Types.Catalog.RecipesCatalog;
-using static ViennaDotNet.ApiServer.Types.Catalog.RecipesCatalog.CraftingRecipe;
+﻿namespace ViennaDotNet.ApiServer.Types.Catalog;
 
-namespace ViennaDotNet.ApiServer.Types.Catalog;
-
-public record RecipesCatalog(
-    CraftingRecipe[] crafting,
-    SmeltingRecipe[] smelting
+public sealed record RecipesCatalog(
+    RecipesCatalog.CraftingRecipe[] crafting,
+    RecipesCatalog.SmeltingRecipe[] smelting
 )
 {
-    public record CraftingRecipe(
+    public sealed record CraftingRecipe(
         string id,
         string category,
         string duration,
-        Ingredient[] ingredients,
-        Output output,
-        ReturnItem[] returnItems,
+        CraftingRecipe.Ingredient[] ingredients,
+        CraftingRecipe.Output output,
+        CraftingRecipe.ReturnItem[] returnItems,
         bool deprecated
     )
     {
-        public record Ingredient(
+        public sealed record Ingredient(
             string[] items,
             int quantity
-        )
-        {
-        }
+        );
 
-        public record Output(
+        public sealed record Output(
             string itemId,
             int quantity
-        )
-        {
-        }
+        );
 
-        public record ReturnItem(
+        public sealed record ReturnItem(
             string id,
             int amount
-        )
-        {
-        }
+        );
     }
 
-    public record SmeltingRecipe(
+    public sealed record SmeltingRecipe(
         string id,
         int heatRequired,
         string inputItemId,
-        Output output,
-        ReturnItem[] returnItems,
+        SmeltingRecipe.Output output,
+        SmeltingRecipe.ReturnItem[] returnItems,
         bool deprecated
     )
     {
-        public record Output(
+        public sealed record Output(
             string itemId,
             int quantity
-        )
-        {
-        }
+        );
 
-        public record ReturnItem(
+        public sealed record ReturnItem(
             string id,
             int amount
-        )
-        {
-        }
+        );
     }
 }

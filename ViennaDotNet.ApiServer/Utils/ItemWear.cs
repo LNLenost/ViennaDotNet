@@ -1,14 +1,20 @@
-﻿using ViennaDotNet.ApiServer.Types.Catalog;
+﻿using Serilog;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Utils;
 
 public static class ItemWear
 {
-    public static float wearToHealth(string itemId, int wear, ItemsCatalog itemsCatalog)
+    public static float wearToHealth(string itemId, int wear, Catalog.ItemsCatalog itemsCatalog)
     {
-        ItemsCatalog.Item catalogItem = itemsCatalog.items.Where(item => item.id == itemId).First();
-#pragma warning disable CS8629 // Nullable value type may be null.
-        return (float)(catalogItem.item.health - wear) / (float)catalogItem.item.health * 100.0f;
-#pragma warning restore CS8629 // Nullable value type may be null.
+        Catalog.ItemsCatalog.Item? catalogItem = itemsCatalog.getItem(itemId);
+
+        if (catalogItem is null || catalogItem.toolInfo is null)
+        {
+            Log.Warning("Attempt to get item health for non-tool item {}", itemId);
+            return 100.0f;
+        }
+
+        return ((catalogItem.toolInfo.maxWear - wear) / (float)catalogItem.toolInfo.maxWear) * 100.0f;
     }
 }

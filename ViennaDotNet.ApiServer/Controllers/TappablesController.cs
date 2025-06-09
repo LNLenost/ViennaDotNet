@@ -10,8 +10,7 @@ using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
-using static ViennaDotNet.ApiServer.Utils.TappablesManager;
-using static ViennaDotNet.DB.Models.Player.ActivityLog;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -22,7 +21,7 @@ public class TappablesController : ControllerBase
 {
     private static TappablesManager tappablesManager => Program.tappablesManager;
     private static EarthDB earthDB => Program.DB;
-    private static Catalog catalog => Program.Catalog;
+    private static Catalog catalog => Program.staticData.catalog;
 
     [HttpGet("locations/{lat}/{lon}")]
     public async Task<IActionResult> GetTappables(double lat, double lon, CancellationToken cancellationToken)

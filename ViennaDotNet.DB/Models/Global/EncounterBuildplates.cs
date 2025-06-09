@@ -1,9 +1,4 @@
 ﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Global;
@@ -30,7 +25,7 @@ public sealed class EncounterBuildplates
 
         public readonly string serverDataObjectId;
 
-		public EncounterBuildplate(int size, int offset, int scale, string serverDataObjectId)
+        public EncounterBuildplate(int size, int offset, int scale, string serverDataObjectId)
         {
             this.size = size;
             this.offset = offset;

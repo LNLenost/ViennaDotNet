@@ -1,6 +1,6 @@
-﻿using ViennaDotNet.ApiServer.Types.Catalog;
-using ViennaDotNet.Common.Utils;
+﻿using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Player.Workshop;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Utils;
 
@@ -8,9 +8,9 @@ public static class CraftingCalculator
 {
     public static State calculateState(long currentTime, CraftingSlot.ActiveJob activeJob, Catalog catalog)
     {
-        RecipesCatalog.CraftingRecipe recipe = catalog.recipesCatalog.crafting.Where(craftingRecipe => craftingRecipe.id == activeJob.recipeId).First();
+        Catalog.RecipesCatalog.CraftingRecipe recipe = catalog.recipesCatalog.crafting.Where(craftingRecipe => craftingRecipe.id == activeJob.recipeId).First();
 
-        long roundDuration = TimeFormatter.ParseDuration(recipe.duration);
+        long roundDuration = recipe.duration * 1000;
         int completedRounds = activeJob.finishedEarly ? activeJob.totalRounds : int.Min((int)((currentTime - activeJob.startTime) / roundDuration), activeJob.totalRounds);
         int availableRounds = completedRounds - activeJob.collectedRounds;
 
@@ -20,7 +20,7 @@ public static class CraftingCalculator
 
         for (int index = 0; index < recipe.ingredients.Length; index++)
         {
-            int usedCount = recipe.ingredients[index].quantity * completedRounds;
+            int usedCount = recipe.ingredients[index].count * completedRounds;
             InputItem inputItem = activeJob.input[index];
             if (inputItem.instances.Length > 0)
             {
@@ -38,7 +38,7 @@ public static class CraftingCalculator
             availableRounds,
             activeJob.totalRounds,
             input,
-            new State.OutputItem(recipe.output.itemId, recipe.output.quantity),
+            new State.OutputItem(recipe.output.itemId, recipe.output.count),
             activeJob.startTime + roundDuration * (completedRounds + 1),
             activeJob.startTime + roundDuration * activeJob.totalRounds,
             completedRounds == activeJob.totalRounds

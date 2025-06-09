@@ -1,12 +1,9 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
-using System.Diagnostics.Metrics;
 using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
-using static ViennaDotNet.ApiServer.Utils.TappablesManager;
-using static ViennaDotNet.DB.Models.Player.ActivityLog;
 
 namespace ViennaDotNet.ApiServer.Utils;
 
@@ -60,12 +57,28 @@ public sealed class TappablesManager
             })];
     }
 
+    public Encounter[] getEncountersAround(float lat, float lon, float radius)
+    {
+        return [.. getTileIdsAround(lat, lon, radius)
+            .Select(tileId => encounters.GetValueOrDefault(tileId))
+            .Where(encounters => encounters is not null)
+            .Select(encounters => encounters!.Values)
+            .SelectMany(encounters => encounters)
+            .Where(encounter =>
+            {
+                double dx = lonToX(encounter.lon) * (1 << 16) - lonToX(lon) * (1 << 16);
+                double dy = latToY(encounter.lat) * (1 << 16) - latToY(lat) * (1 << 16);
+                double distanceSquared = dx * dx + dy * dy;
+                return distanceSquared <= radius * radius;
+            })];
+    }
+
     private static string[] getTileIdsAround(double lat, double lon, double radius)
     {
         int tileX = xToTile(lonToX(lon));
         int tileY = yToTile(latToY(lat));
         int tileRadius = (int)Math.Ceiling(radius);
-        return Java.IntStream.Range(tileX - tileRadius, tileX + tileRadius + 1).Select(x => Java.IntStream.Range(tileY - tileRadius, tileY + tileRadius + 1).Select(y => $"{x}_{y}")).SelectMany(stream => stream).ToArray();
+        return [.. Java.IntStream.Range(tileX - tileRadius, tileX + tileRadius + 1).Select(x => Java.IntStream.Range(tileY - tileRadius, tileY + tileRadius + 1).Select(y => $"{x}_{y}")).SelectMany(stream => stream)];
     }
 
     public Tappable? getTappableWithId(string id, string tileId)
@@ -136,9 +149,39 @@ public sealed class TappablesManager
                         pruneCounter = 0;
                         prune(@event.timestamp);
                     }
-
-                    break;
                 }
+
+                break;
+            case "encounterSpawn":
+                {
+                    Encounter? encounter;
+
+                    try
+                    {
+                        encounter = JsonConvert.DeserializeObject<Encounter>(@event.data);
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.Error($"Could not deserialise encounter spawn event: {exception}");
+                        break;
+                    }
+
+                    if (encounter is null)
+                    {
+                        Log.Error($"Could not deserialise encounter spawn event: object is null");
+                        break;
+                    }
+
+                    addEncounter(encounter);
+
+                    if (pruneCounter++ == 10)
+                    {
+                        pruneCounter = 0;
+                        prune(@event.timestamp);
+                    }
+                }
+
+                break;
         }
     }
 

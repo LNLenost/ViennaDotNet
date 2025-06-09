@@ -33,7 +33,7 @@ public sealed class Buildplates
 
     public BuildplateEntry[] getBuildplates()
     {
-        return buildplates.Select(entry => new BuildplateEntry(entry.Key, entry.Value)).ToArray();
+        return [.. buildplates.Select(entry => new BuildplateEntry(entry.Key, entry.Value))];
     }
 
     [JsonObject(MemberSerialization.OptIn)]

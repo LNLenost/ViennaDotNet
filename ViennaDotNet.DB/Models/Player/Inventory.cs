@@ -37,7 +37,7 @@ public sealed class Inventory
 
     public StackableItem[] getStackableItems()
     {
-        return stackableItems.Select(item => new StackableItem(item.Key, item.Value)).ToArray();
+        return [.. stackableItems.Select(item => new StackableItem(item.Key, item.Value))];
     }
 
     public record NonStackableItem(
@@ -49,7 +49,7 @@ public sealed class Inventory
 
     public NonStackableItem[] getNonStackableItems()
     {
-        return nonStackableItems.Select(item => new NonStackableItem(item.Key, item.Value.Values.ToArray())).ToArray();
+        return [.. nonStackableItems.Select(item => new NonStackableItem(item.Key, [.. item.Value.Values]))];
     }
 
     public int getItemCount(string id)
@@ -70,7 +70,7 @@ public sealed class Inventory
     {
         Dictionary<string, NonStackableItemInstance>? instances = nonStackableItems!.GetOrDefault(id, null);
         if (instances != null)
-            return instances.Values.ToArray();
+            return [.. instances.Values];
 
         return [];
     }
@@ -115,20 +115,24 @@ public sealed class Inventory
 
     public NonStackableItemInstance[]? takeItems(string id, string[] instanceIds)
     {
-        Dictionary<string, NonStackableItemInstance>? instanceMap = nonStackableItems.GetOrDefault(id, null);
-        if (instanceMap == null)
+        Dictionary<string, NonStackableItemInstance>? instanceMap = nonStackableItems.GetValueOrDefault(id);
+        if (instanceMap is null)
+        {
             return null;
+        }
 
         LinkedList<NonStackableItemInstance> instances = new();
         foreach (string instanceId in instanceIds)
         {
             NonStackableItemInstance? instance = instanceMap.JavaRemove(instanceId);
-            if (instance == null)
+            if (instance is null)
+            {
                 return null;
+            }
 
             instances.AddLast(instance);
         }
 
-        return instances.ToArray();
+        return [.. instances];
     }
 }

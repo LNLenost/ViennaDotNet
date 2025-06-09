@@ -21,11 +21,11 @@ internal static class Program
 
         Log.Logger = log;
 
-        AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
+        /*AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
         {
             Log.Fatal($"Unhandeled exception: {e.ExceptionObject}");
             Environment.Exit(1);
-        };
+        };*/
 
         ParserResult<Options> res = Parser.Default.ParseArguments<Options>(args);
 

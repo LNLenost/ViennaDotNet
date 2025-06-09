@@ -1,9 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using System.Reflection;
 using System.Runtime.Serialization;
-using ViennaDotNet.ApiServer.Types.Inventory;
-using ViennaDotNet.DB.Models.Player;
 
 namespace ViennaDotNet.ApiServer.Types.Buildplates;
 
@@ -20,7 +17,7 @@ public record SharedBuildplate(
         int blocksPerMeter,
         BuildplateData.Type type,
         SurfaceOrientation surfaceOrientation,
-        String model,
+        string model,
         int order
     )
     {

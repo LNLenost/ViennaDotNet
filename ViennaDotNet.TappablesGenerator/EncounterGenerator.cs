@@ -1,15 +1,8 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO.Pipelines;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using Uma.Uuid;
 using ViennaDotNet.Common.Utils;
 using Rarity = ViennaDotNet.TappablesGenerator.EncounterGenerator.EncounterConfig.Rarity;
 
@@ -79,7 +72,7 @@ public class EncounterGenerator
 
             this.encounterConfigs = [.. encounterConfigs];
             totalWeight = (float)encounterConfigs.Select(encounterConfig => (double)encounterConfig.rarity.GetWeight()).Sum();
-            maxDuration = encounterConfigs.Select(encounterConfig => (int)encounterConfig.duration).DefaultIfEmpty().Max() * 1000;
+            maxDuration = encounterConfigs.Select(encounterConfig => encounterConfig.duration).DefaultIfEmpty().Max() * 1000;
         }
         catch (Exception exception)
         {

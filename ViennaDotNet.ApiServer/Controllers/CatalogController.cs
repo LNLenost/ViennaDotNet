@@ -3,17 +3,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.StaticData;
-using CICICategory = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.Category;
-using CICIType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.Type;
-using CICIUseType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.UseType;
-using CICIBIType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.BoostInfo.Type;
-using CICIBIEType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type;
 using CICIBIEActivation = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.BoostInfo.Effect.Activation;
+using CICIBIEType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type;
+using CICIBIType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.BoostInfo.Type;
+using CICICategory = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.Category;
 using CICIJEBehavior = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.JournalEntry.Behavior;
 using CICIJEBiome = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.JournalEntry.Biome;
-
+using CICIType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.Type;
+using CICIUseType = ViennaDotNet.StaticData.Catalog.ItemsCatalog.Item.UseType;
+using CIJGCJGParentCollection = ViennaDotNet.StaticData.Catalog.ItemJournalGroupsCatalog.JournalGroup.ParentCollection;
+using CRCCRCategory = ViennaDotNet.StaticData.Catalog.RecipesCatalog.CraftingRecipe.Category;
 using ItemsCatalog = ViennaDotNet.ApiServer.Types.Catalog.ItemsCatalog;
 
 namespace ViennaDotNet.ApiServer.Controllers;
@@ -27,30 +29,22 @@ public class CatalogController : ControllerBase
 
     [HttpGet("inventory/catalogv3")]
     public IActionResult GetItemsCatalog()
-    {
-        return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.itemsCatalog)), "application/json");
-    }
+        => Content(JsonConvert.SerializeObject(new EarthApiResponse(makeItemsCatalogApiResponse(catalog))), "application/json");
 
     [HttpGet("recipes")]
     public IActionResult GetRecipeCatalog()
-    {
-        return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.recipesCatalog)), "application/json");
-    }
+        => Content(JsonConvert.SerializeObject(new EarthApiResponse(makeRecipesCatalogApiResponse(catalog))), "application/json");
 
     [HttpGet("journal/catalog")]
     public IActionResult GetJournalCatalog()
-    {
-        return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.journalCatalog)), "application/json");
-    }
+        => Content(JsonConvert.SerializeObject(new EarthApiResponse(makeJournalCatalogApiResponse(catalog))), "application/json");
 
     [HttpGet("products/catalog")]
     public IActionResult GetNFCBoostsCatalog()
-    {
-        return Content(JsonConvert.SerializeObject(new EarthApiResponse(catalog.nfcBoostsCatalog)), "application/json");
-    }
+        => Content(JsonConvert.SerializeObject(new EarthApiResponse(makeNFCBoostsCatalogApiResponse(catalog))), "application/json");
 
     // TODO: cache these?
-    private static Types.Catalog.ItemsCatalog makeItemsCatalogApiResponse(Catalog catalog)
+    private static ItemsCatalog makeItemsCatalogApiResponse(Catalog catalog)
     {
         ItemsCatalog.Item[] items = [.. catalog.itemsCatalog.items.Select(item =>
         {
@@ -88,7 +82,7 @@ public class CatalogController : ControllerBase
                 _ => throw new UnreachableException(),
             };
 
-            String useTypeString = item.useType switch
+            string useTypeString = item.useType switch
             {
                 CICIUseType.NONE => "None",
 
@@ -99,8 +93,9 @@ public class CatalogController : ControllerBase
                 CICIUseType.DESTROY => "Destroy",
                 CICIUseType.USE => "Use",
                 CICIUseType.CONSUME => "Consume",
-            }
-    ;
+                _ => throw new UnreachableException(),
+            };
+
             string alternativeUseTypeString = item.alternativeUseType switch
             {
                 CICIUseType.NONE => "None",
@@ -112,8 +107,8 @@ public class CatalogController : ControllerBase
                 CICIUseType.DESTROY => "Destroy",
                 CICIUseType.USE => "Use",
                 CICIUseType.CONSUME => "Consume",
-            }
-    ;
+                _ => throw new UnreachableException(),
+            };
 
             int health;
             if (item.blockInfo is not null)
@@ -167,7 +162,7 @@ public class CatalogController : ControllerBase
                     _ => throw new UnreachableException(),
                 };
 
-                String boostAttributeString = item.boostInfo.effects[0].type switch
+                string boostAttributeString = item.boostInfo.effects[0].type switch
                 {
                     CICIBIEType.ADVENTURE_XP => "ItemExperiencePoints",
                     CICIBIEType.CRAFTING => "Crafting",
@@ -184,7 +179,7 @@ public class CatalogController : ControllerBase
                     _ => throw new UnreachableException(),
                 };
 
-                boostMetadata = new Types.Catalog.BoostMetadata(
+                boostMetadata = new BoostMetadata(
                     item.boostInfo.name,
                     boostTypeString,
                     boostAttributeString,
@@ -193,7 +188,7 @@ public class CatalogController : ControllerBase
                     item.boostInfo.duration is not null ? TimeFormatter.FormatDuration(item.boostInfo.duration.Value) : null,
                     true,
                     item.boostInfo.level,
-                    item.boostInfo.effects.Select(effect =>
+                    [.. item.boostInfo.effects.Select(effect =>
                     {
                         string effectTypeString = effect.type switch
                         {
@@ -224,8 +219,8 @@ public class CatalogController : ControllerBase
 
                         return new Types.Catalog.BoostMetadata.Effect(
                             effectTypeString,
-                            effect.activation == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Activation.TIMED ? TimeFormatter.FormatDuration(effect.duration) : null,
-                            effect.type == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.RETENTION_BACKPACK || effect.type == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.RETENTION_HOTBAR || effect.type == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.RETENTION_XP ? null : effect.value,
+                            effect.activation == CICIBIEActivation.TIMED ? TimeFormatter.FormatDuration(effect.duration) : null,
+                            effect.type == CICIBIEType.RETENTION_BACKPACK || effect.type == CICIBIEType.RETENTION_HOTBAR || effect.type == CICIBIEType.RETENTION_XP ? null : effect.value,
                             effect.type switch
                             {
                                 CICIBIEType.HEALING or CICIBIEType.TAPPABLE_RADIUS => "Increment",
@@ -233,29 +228,29 @@ public class CatalogController : ControllerBase
                                 CICIBIEType.RETENTION_BACKPACK or CICIBIEType.RETENTION_HOTBAR or CICIBIEType.RETENTION_XP => null,
                                 _ => throw new UnreachableException(),
                             },
-                            effect.type == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.CRAFTING || effect.type == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.SMELTING ? "UtilityBlock" : "Player",
+                            effect.type == CICIBIEType.CRAFTING || effect.type == CICIBIEType.SMELTING ? "UtilityBlock" : "Player",
                             effect.applicableItemIds,
 
                             effect.type switch
                             {
-                                CICIBIEType.ITEM_XP => new string[] { "Tappable" },
-                                CICIBIEType.ADVENTURE_XP => new string[] { "Encounter" },
-                                _ => Array.Empty<string>(),
+                                CICIBIEType.ITEM_XP => ["Tappable"],
+                                CICIBIEType.ADVENTURE_XP => ["Encounter"],
+                                _ => [],
                             },
                             activationString,
-                            effect.type == Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.EATING ? "Health" : null
+                            effect.type == CICIBIEType.EATING ? "Health" : null
                         );
-                    }).ToArray(),
-                            item.boostInfo.triggeredOnDeath ? "Death" : null,
-                            null
-                    );
+                    })],
+                    item.boostInfo.triggeredOnDeath ? "Death" : null,
+                    null
+                );
             }
             else
             {
                 boostMetadata = null;
             }
 
-            Types.Catalog.ItemsCatalog.Item.ItemData.JournalMetadata? journalMetadata;
+            ItemsCatalog.Item.ItemData.JournalMetadata? journalMetadata;
             if (item.journalEntry is not null)
             {
                 string behaviorString = item.journalEntry.behavior switch
@@ -292,7 +287,7 @@ public class CatalogController : ControllerBase
                     _ => throw new UnreachableException(),
                 };
 
-                journalMetadata = new Types.Catalog.ItemsCatalog.Item.ItemData.JournalMetadata(
+                journalMetadata = new ItemsCatalog.Item.ItemData.JournalMetadata(
                     item.journalEntry.group,
                     item.experience.journal,
                     item.journalEntry.order,
@@ -305,9 +300,9 @@ public class CatalogController : ControllerBase
                 journalMetadata = null;
             }
 
-            return new Types.Catalog.ItemsCatalog.Item(
+            return new ItemsCatalog.Item(
                 item.id,
-                new Types.Catalog.ItemsCatalog.Item.ItemData(
+                new ItemsCatalog.Item.ItemData(
                     item.name,
                     item.aux,
                     typeString,
@@ -318,8 +313,8 @@ public class CatalogController : ControllerBase
                     mobDamage,
                     blockDamage,
                     health,
-                    item.blockInfo is not null ? new Types.Catalog.ItemsCatalog.Item.ItemData.BlockMetadata(item.blockInfo.breakingHealth, item.blockInfo.efficiencyCategory) : null,
-                    new Types.Catalog.ItemsCatalog.Item.ItemData.ItemMetadata(
+                    item.blockInfo is not null ? new ItemsCatalog.Item.ItemData.BlockMetadata(item.blockInfo.breakingHealth, item.blockInfo.efficiencyCategory) : null,
+                    new ItemsCatalog.Item.ItemData.ItemMetadata(
                         useTypeString,
                         alternativeUseTypeString,
                         mobDamage,
@@ -332,9 +327,9 @@ public class CatalogController : ControllerBase
                     ),
                     boostMetadata,
                     journalMetadata,
-                    item.journalEntry is not null && item.journalEntry.sound is not null ? new Types.Catalog.ItemsCatalog.Item.ItemData.AudioMetadata(
-                            new Dictionary<string, string>() { ["journal"] = item.journalEntry.sound },
-                            item.journalEntry.sound
+                    item.journalEntry is not null && item.journalEntry.sound is not null ? new ItemsCatalog.Item.ItemData.AudioMetadata(
+                        new Dictionary<string, string>() { ["journal"] = item.journalEntry.sound },
+                        item.journalEntry.sound
                     ) : null,
                     new Dictionary<string, object>()
                 ),
@@ -343,8 +338,8 @@ public class CatalogController : ControllerBase
                 1,
                 item.stackable,
                 item.fuelInfo is not null ? new Types.Common.BurnRate(item.fuelInfo.burnTime, item.fuelInfo.heatPerSecond) : null,
-                item.fuelInfo is not null && item.fuelInfo.returnItemId != null ? new ItemsCatalog.Item.ReturnItem[] { new ItemsCatalog.Item.ReturnItem(item.fuelInfo.returnItemId, 1) } : Array.Empty<ItemsCatalog.Item.ReturnItem>(),
-                item.consumeInfo != null && item.consumeInfo.returnItemId != null ? new ItemsCatalog.Item.ReturnItem[] { new ItemsCatalog.Item.ReturnItem(item.consumeInfo.returnItemId, 1) } : Array.Empty<ItemsCatalog.Item.ReturnItem>(),
+                item.fuelInfo is not null && item.fuelInfo.returnItemId != null ? [new ItemsCatalog.Item.ReturnItem(item.fuelInfo.returnItemId, 1)] : [],
+                item.consumeInfo != null && item.consumeInfo.returnItemId != null ? [new ItemsCatalog.Item.ReturnItem(item.consumeInfo.returnItemId, 1)] : [],
                 item.experience.tappable,
                 new Dictionary<string, int?>() { ["tappable"] = item.experience.tappable, ["encounter"] = item.experience.encounter, ["crafting"] = item.experience.crafting },
                 false
@@ -354,23 +349,96 @@ public class CatalogController : ControllerBase
         Dictionary<string, ItemsCatalog.EfficiencyCategory> efficiencyCategories = [];
         foreach (Catalog.ItemEfficiencyCategoriesCatalog.EfficiencyCategory efficiencyCategory in catalog.itemEfficiencyCategoriesCatalog.efficiencyCategories)
         {
-            efficiencyCategories.put(efficiencyCategory.name, new ItemsCatalog.EfficiencyCategory(
-                    new ItemsCatalog.EfficiencyCategory.EfficiencyMap(
-                            efficiencyCategory.hand(),
-                            efficiencyCategory.hoe(),
-                            efficiencyCategory.axe(),
-                            efficiencyCategory.shovel(),
-                            efficiencyCategory.pickaxe_1(),
-                            efficiencyCategory.pickaxe_2(),
-                            efficiencyCategory.pickaxe_3(),
-                            efficiencyCategory.pickaxe_4(),
-                            efficiencyCategory.pickaxe_5(),
-                            efficiencyCategory.sword(),
-                            efficiencyCategory.sheers()
-                    )
-            ));
+            efficiencyCategories[efficiencyCategory.name] = new ItemsCatalog.EfficiencyCategory(
+                new ItemsCatalog.EfficiencyCategory.EfficiencyMap(
+                    efficiencyCategory.hand,
+                    efficiencyCategory.hoe,
+                    efficiencyCategory.axe,
+                    efficiencyCategory.shovel,
+                    efficiencyCategory.pickaxe_1,
+                    efficiencyCategory.pickaxe_2,
+                    efficiencyCategory.pickaxe_3,
+                    efficiencyCategory.pickaxe_4,
+                    efficiencyCategory.pickaxe_5,
+                    efficiencyCategory.sword,
+                    efficiencyCategory.sheers
+                )
+            );
         }
 
         return new ItemsCatalog(items, efficiencyCategories);
+    }
+
+    private static RecipesCatalog makeRecipesCatalogApiResponse(Catalog catalog)
+    {
+        RecipesCatalog.CraftingRecipe[] crafting = [.. catalog.recipesCatalog.crafting.Select(recipe =>
+        {
+            string categoryString = recipe.category switch
+            {
+                CRCCRCategory.CONSTRUCTION => "Construction",
+                CRCCRCategory.EQUIPMENT => "Equipment",
+                CRCCRCategory.ITEMS => "Items",
+                CRCCRCategory.NATURE => "Nature",
+                _ => throw new UnreachableException(),
+            };
+
+            return new RecipesCatalog.CraftingRecipe(
+                    recipe.id,
+                    categoryString,
+                    TimeFormatter.FormatDuration(recipe.duration * 1000),
+                    [.. recipe.ingredients.Select(ingredient => new RecipesCatalog.CraftingRecipe.Ingredient(ingredient.possibleItemIds, ingredient.count))],
+                    new RecipesCatalog.CraftingRecipe.Output(recipe.output.itemId, recipe.output.count),
+                    [.. recipe.returnItems.Select(returnItem => new RecipesCatalog.CraftingRecipe.ReturnItem(returnItem.itemId, returnItem.count))],
+                    false
+            );
+        })];
+
+        RecipesCatalog.SmeltingRecipe[] smelting = [.. catalog.recipesCatalog.smelting.Select(recipe =>
+        {
+            return new RecipesCatalog.SmeltingRecipe(
+                recipe.id,
+                recipe.heatRequired,
+                recipe.input,
+                new RecipesCatalog.SmeltingRecipe.Output(recipe.output, 1),
+                recipe.returnItemId != null ? [new RecipesCatalog.SmeltingRecipe.ReturnItem(recipe.returnItemId, 1)] : [],
+                false
+            );
+        })];
+
+        return new RecipesCatalog(crafting, smelting);
+    }
+
+    private static JournalCatalog makeJournalCatalogApiResponse(Catalog catalog)
+    {
+        Dictionary<string, JournalCatalog.Item> items = [];
+        foreach (Catalog.ItemJournalGroupsCatalog.JournalGroup group in catalog.itemJournalGroupsCatalog.groups)
+        {
+            string parentCollectionString = group.parentCollection switch
+            {
+                CIJGCJGParentCollection.BLOCKS => "Blocks",
+                CIJGCJGParentCollection.ITEMS_CRAFTED => "ItemsCrafted",
+                CIJGCJGParentCollection.ITEMS_SMELTED => "ItemsSmelted",
+                CIJGCJGParentCollection.MOBS => "Mobs",
+                _ => throw new UnreachableException(),
+            };
+
+            items[group.name] = new JournalCatalog.Item(
+                    group.id,
+                    parentCollectionString,
+                    group.order,
+                    group.order,
+                    group.defaultSound,
+                    false,
+                    "200526.173531"
+            );
+        }
+
+        return new JournalCatalog(items);
+    }
+
+    private static NFCBoost[] makeNFCBoostsCatalogApiResponse(Catalog catalog)
+    {
+        // TODO
+        return [];
     }
 }

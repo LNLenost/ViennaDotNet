@@ -3,11 +3,8 @@ using Cyotek.Data.Nbt.Serialization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
-using System;
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Text;
 using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common;
@@ -952,7 +949,7 @@ public class Instance
                         /*try
                         {*/
                         Debug.Assert((duration > 2000 ? (duration / 2) : duration) < int.MaxValue);
-                            Thread.Sleep((int)(duration > 2000 ? (duration / 2) : duration));
+                        Thread.Sleep((int)(duration > 2000 ? (duration / 2) : duration));
                         /*}
                         catch (ThreadInterruptedException exception)
                         {

@@ -31,7 +31,7 @@ public sealed class Tokens
 
     public TokenWithId[] getTokens()
     {
-        return tokens.Select(item => new TokenWithId(item.Key, item.Value)).ToArray();
+        return [.. tokens.Select(item => new TokenWithId(item.Key, item.Value))];
     }
 
     public void addToken(string id, Token token)

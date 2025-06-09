@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.EventBus.Client;
 

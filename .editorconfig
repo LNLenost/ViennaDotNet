@@ -201,8 +201,8 @@ dotnet_style_prefer_simplified_interpolation = true:suggestion
 dotnet_style_prefer_collection_expression = when_types_loosely_match:warning
 dotnet_style_namespace_match_folder = true:warning
 dotnet_style_readonly_field = true:warning
-dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
-dotnet_style_predefined_type_for_member_access = true:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:error
+dotnet_style_predefined_type_for_member_access = true:error
 dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
 dotnet_style_allow_multiple_blank_lines_experimental = false:warning
 dotnet_style_allow_statement_immediately_after_block_experimental = false:warning
@@ -276,3 +276,6 @@ dotnet_diagnostic.CA2011.severity = warning
 dotnet_diagnostic.CA2012.severity = warning
 dotnet_diagnostic.CA2215.severity = warning
 dotnet_diagnostic.CA2251.severity = suggestion
+
+# IDE0049: Simplify Names
+dotnet_diagnostic.IDE0049.severity = error

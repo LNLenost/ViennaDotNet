@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Security.Claims;
-using Uma.Uuid;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Inventory;
 using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -19,7 +19,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 public class InventoryController : ControllerBase
 {
     private static EarthDB earthDB => Program.DB;
-    private static Catalog catalog => Program.Catalog;
+    private static Catalog catalog => Program.staticData.catalog;
 
     [HttpGet]
     public async Task<IActionResult> GetInventory(CancellationToken cancellationToken)

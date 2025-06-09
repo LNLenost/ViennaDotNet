@@ -1,5 +1,4 @@
 ﻿using Serilog;
-using System.Runtime.InteropServices;
 using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;

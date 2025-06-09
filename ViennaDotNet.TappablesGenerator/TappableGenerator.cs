@@ -1,8 +1,5 @@
 ﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using Serilog;
-using System;
-using System.Runtime.Serialization;
 using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 
@@ -109,7 +106,7 @@ public class TappableGenerator
             float lat = random.NextSingle(tileBounds[1], tileBounds[0]);
             float lon = random.NextSingle(tileBounds[2], tileBounds[3]);
 
-            int dropSetIndex = random.Next(0, tappableConfig.dropSets.Select(dropSet=>(int)dropSet.chance).Sum());
+            int dropSetIndex = random.Next(0, tappableConfig.dropSets.Select(dropSet => dropSet.chance).Sum());
             TappableConfig.DropSet? dropSet = null;
 
             foreach (TappableConfig.DropSet dropSet1 in tappableConfig.dropSets)

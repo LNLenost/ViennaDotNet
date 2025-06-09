@@ -23,7 +23,7 @@ internal sealed class JsonNbtConverter
         foreach (object item in tag)
             value.AddLast(convert(item));
 
-        return new ListJsonNbtTag(value.ToArray());
+        return new ListJsonNbtTag([.. value]);
     }
 
     private static JsonNbtTag convert(object tag)

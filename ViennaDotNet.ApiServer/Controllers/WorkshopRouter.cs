@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
+using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common.Excceptions;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Player;
+using ViennaDotNet.StaticData;
 using BurnRate = ViennaDotNet.ApiServer.Types.Common.BurnRate;
 using CraftingCalculator = ViennaDotNet.ApiServer.Utils.CraftingCalculator;
 using CraftingSlot = ViennaDotNet.DB.Models.Player.Workshop.CraftingSlot;
@@ -20,12 +22,10 @@ using FinishPrice = ViennaDotNet.ApiServer.Types.Workshop.FinishPrice;
 using Hotbar = ViennaDotNet.DB.Models.Player.Hotbar;
 using InputItem = ViennaDotNet.DB.Models.Player.Workshop.InputItem;
 using Inventory = ViennaDotNet.DB.Models.Player.Inventory;
-using ItemsCatalog = ViennaDotNet.ApiServer.Types.Catalog.ItemsCatalog;
 using Journal = ViennaDotNet.DB.Models.Player.Journal;
 using NonStackableItemInstance = ViennaDotNet.DB.Models.Common.NonStackableItemInstance;
 using OutputItem = ViennaDotNet.ApiServer.Types.Workshop.OutputItem;
 using Profile = ViennaDotNet.DB.Models.Player.Profile;
-using RecipesCatalog = ViennaDotNet.ApiServer.Types.Catalog.RecipesCatalog;
 using Rewards = ViennaDotNet.ApiServer.Utils.Rewards;
 using SmeltingCalculator = ViennaDotNet.ApiServer.Utils.SmeltingCalculator;
 using SmeltingSlot = ViennaDotNet.DB.Models.Player.Workshop.SmeltingSlot;
@@ -43,7 +43,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 public class WorkshopRouter : ControllerBase
 {
     private static EarthDB earthDB => Program.DB;
-    private static Catalog catalog => Program.Catalog;
+    private static Catalog catalog => Program.staticData.catalog;
 
     [HttpGet("player/utilityBlocks")]
     public async Task<IActionResult> GetUtilityBlocks(CancellationToken cancellationToken)
@@ -166,9 +166,9 @@ public class WorkshopRouter : ControllerBase
         if (startRequest.ingredients.Any(item => item == null || item.quantity < 1 || (item.itemInstanceIds != null && item.itemInstanceIds.Length > 0 && item.itemInstanceIds.Length != item.quantity)))
             return BadRequest();
 
-        RecipesCatalog.CraftingRecipe? recipe = catalog.recipesCatalog.crafting.Where(craftingRecipe => craftingRecipe.id == startRequest.recipeId).FirstOrDefault();
+        Catalog.RecipesCatalog.CraftingRecipe? recipe = catalog.recipesCatalog.getCraftingRecipe(startRequest.recipeId);
 
-        if (recipe == null)
+        if (recipe is null)
             return BadRequest();
 
         if (startRequest.ingredients.Length != recipe.ingredients.Length)
@@ -179,13 +179,17 @@ public class WorkshopRouter : ControllerBase
 
         for (int index = 0; index < recipe.ingredients.Length; index++)
         {
-            RecipesCatalog.CraftingRecipe.Ingredient ingredient = recipe.ingredients[index];
+            Catalog.RecipesCatalog.CraftingRecipe.Ingredient ingredient = recipe.ingredients[index];
             StartRequestCrafting.Item item = startRequest.ingredients[index];
-            if (!ingredient.items.Any(id => id == item.itemId))
+            if (!ingredient.possibleItemIds.Any(id => id == item.itemId))
+            {
                 return BadRequest();
+            }
 
-            if (item.quantity != ingredient.quantity * startRequest.multiplier)
+            if (item.quantity != ingredient.count * startRequest.multiplier)
+            {
                 return BadRequest();
+            }
         }
 
         try
@@ -265,18 +269,35 @@ public class WorkshopRouter : ControllerBase
         if (startRequest.fuel != null && startRequest.fuel.quantity > 0 && startRequest.fuel.itemInstanceIds != null && startRequest.fuel.itemInstanceIds.Length > 0 && startRequest.fuel.itemInstanceIds.Length != startRequest.fuel.quantity)
             return BadRequest();
 
-        RecipesCatalog.SmeltingRecipe? recipe = catalog.recipesCatalog.smelting.Where(smeltingRecipe => smeltingRecipe.id == startRequest.recipeId).FirstOrDefault();
-        if (recipe == null)
+        Catalog.RecipesCatalog.SmeltingRecipe? recipe = catalog.recipesCatalog.getSmeltingRecipe(startRequest.recipeId);
+        Catalog.ItemsCatalog.Item? fuelCatalogItem = startRequest.fuel is not null ? catalog.itemsCatalog.getItem(startRequest.fuel.itemId) : null;
+        if (recipe is null)
+        {
             return BadRequest();
+        }
 
-        if (recipe.returnItems.Length > 0)
-            throw new UnsupportedOperationException(); // TODO: implement returnItems
-
-        if (startRequest.fuel != null && (catalog.itemsCatalog.items.Where(item => item.id == startRequest.fuel.itemId).FirstOrDefault()?.Map(item => item.fuelReturnItems.Length > 0) ?? false))
-            throw new UnsupportedOperationException(); // TODO: implement returnItems
-
-        if (startRequest.input.itemId != recipe.inputItemId || startRequest.input.quantity != startRequest.multiplier)
+        if (startRequest.fuel is not null && (fuelCatalogItem is null || fuelCatalogItem.fuelInfo is null))
+        {
             return BadRequest();
+        }
+
+        if (recipe.returnItemId is not null)
+        {
+            throw new UnsupportedOperationException(); // TODO: implement returnItems
+        }
+
+        Debug.Assert(fuelCatalogItem is not null);
+        Debug.Assert(fuelCatalogItem.fuelInfo is not null);
+
+        if (startRequest.fuel is not null && fuelCatalogItem.fuelInfo.returnItemId is not null)
+        {
+            throw new UnsupportedOperationException(); // TODO: implement returnItems
+        }
+
+        if (startRequest.input.itemId != recipe.input || startRequest.input.quantity != startRequest.multiplier)
+        {
+            return BadRequest();
+        }
 
         try
         {
@@ -320,16 +341,11 @@ public class WorkshopRouter : ControllerBase
                         if (requiredFuelHeat <= 0)
                             return query;
 
-                        BurnRate? burnRate = catalog.itemsCatalog.items.Where(item => item.id == startRequest.fuel.itemId).FirstOrDefault()?.Map(item => item.burnRate);
-
-                        if (burnRate == null)
-                            return query;
-
                         int requiredFuelCount = 0;
                         while (requiredFuelHeat > 0)
                         {
                             requiredFuelCount += 1;
-                            requiredFuelHeat -= burnRate.heatPerSecond * burnRate.burnTime;
+                            requiredFuelHeat -= fuelCatalogItem.fuelInfo.heatPerSecond * fuelCatalogItem.fuelInfo.burnTime;
                         }
 
                         if (startRequest.fuel.quantity < requiredFuelCount)
@@ -353,7 +369,7 @@ public class WorkshopRouter : ControllerBase
                             fuelItem = new InputItem(startRequest.fuel.itemId, requiredFuelCount, instances);
                         }
 
-                        fuel = new SmeltingSlot.Fuel(fuelItem, burnRate.burnTime, burnRate.heatPerSecond);
+                        fuel = new SmeltingSlot.Fuel(fuelItem, fuelCatalogItem.fuelInfo.burnTime, fuelCatalogItem.fuelInfo.heatPerSecond);
                     }
                     else
                     {
@@ -537,7 +553,7 @@ public class WorkshopRouter : ControllerBase
                     foreach (InputItem inputItem in state.input)
                     {
                         if (inputItem.instances.Length > 0)
-                            inventory.addItems(inputItem.id, inputItem.instances.Select(instance => new NonStackableItemInstance(instance.instanceId, instance.wear)).ToArray());
+                            inventory.addItems(inputItem.id, [.. inputItem.instances.Select(instance => new NonStackableItemInstance(instance.instanceId, instance.wear))]);
                         else if (inputItem.count > 0)
                             inventory.addItems(inputItem.id, inputItem.count);
 
@@ -547,12 +563,17 @@ public class WorkshopRouter : ControllerBase
                     int outputQuantity = state.availableRounds * state.output.count;
                     if (outputQuantity > 0)
                     {
-                        ItemsCatalog.Item item = catalog.itemsCatalog.items.Where(item1 => item1.id == state.output.id).First();
-                        if (item.stacks)
+                        Catalog.ItemsCatalog.Item? item = catalog.itemsCatalog.getItem(state.output.id);
+
+                        Debug.Assert(item is not null);
+
+                        if (item.stackable)
+                        {
                             inventory.addItems(item.id, outputQuantity);
+                        }
                         else
                         {
-                            inventory.addItems(item.id, Java.IntStream.Range(0, outputQuantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0)).ToArray());
+                            inventory.addItems(item.id, [.. Java.IntStream.Range(0, outputQuantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0))]);
                         }
 
                         journal.touchItem(state.output.id, requestStartedOn);
@@ -609,7 +630,7 @@ public class WorkshopRouter : ControllerBase
                     SmeltingCalculator.State state = SmeltingCalculator.calculateState(requestStartedOn, smeltingSlot.activeJob, smeltingSlot.burning, catalog);
 
                     if (state.input.instances.Length > 0)
-                        inventory.addItems(state.input.id, state.input.instances.Select(instance => new NonStackableItemInstance(instance.instanceId, instance.wear)).ToArray());
+                        inventory.addItems(state.input.id, [.. state.input.instances.Select(instance => new NonStackableItemInstance(instance.instanceId, instance.wear))]);
                     else if (state.input.count > 0)
                         inventory.addItems(state.input.id, state.input.count);
 
@@ -618,11 +639,18 @@ public class WorkshopRouter : ControllerBase
                     int outputQuantity = state.availableRounds * state.output.count;
                     if (outputQuantity > 0)
                     {
-                        ItemsCatalog.Item item = catalog.itemsCatalog.items.Where(item1 => item1.id == state.output.id).First();
-                        if (item.stacks)
+                        Catalog.ItemsCatalog.Item? item = catalog.itemsCatalog.getItem(state.output.id);
+
+                        Debug.Assert(item is not null);
+
+                        if (item.stackable)
+                        {
                             inventory.addItems(item.id, outputQuantity);
+                        }
                         else
-                            inventory.addItems(item.id, Java.IntStream.Range(0, outputQuantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0)).ToArray());
+                        {
+                            inventory.addItems(item.id, [.. Java.IntStream.Range(0, outputQuantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0))]);
+                        }
 
                         journal.touchItem(state.output.id, requestStartedOn);
                     }
@@ -630,7 +658,7 @@ public class WorkshopRouter : ControllerBase
                     if (state.remainingAddedFuel != null)
                     {
                         if (state.remainingAddedFuel.item.instances.Length > 0)
-                            inventory.addItems(state.remainingAddedFuel.item.id, state.remainingAddedFuel.item.instances.Select(instance => new NonStackableItemInstance(instance.instanceId, instance.wear)).ToArray());
+                            inventory.addItems(state.remainingAddedFuel.item.id, [.. state.remainingAddedFuel.item.instances.Select(instance => new NonStackableItemInstance(instance.instanceId, instance.wear))]);
                         else if (state.remainingAddedFuel.item.count > 0)
                             inventory.addItems(state.remainingAddedFuel.item.id, state.remainingAddedFuel.item.count);
 
@@ -1015,7 +1043,7 @@ public class WorkshopRouter : ControllerBase
                     new BurnRate(state.remainingAddedFuel.burnDuration, state.remainingAddedFuel.heatPerSecond),
                     state.remainingAddedFuel.item.id,
                     state.remainingAddedFuel.item.count,
-                    state.remainingAddedFuel.item.instances.Select(item => item.instanceId).ToArray()
+                    [.. state.remainingAddedFuel.item.instances.Select(item => item.instanceId)]
                 );
             }
             else
@@ -1030,7 +1058,7 @@ public class WorkshopRouter : ControllerBase
                     new BurnRate(state.currentBurningFuel.burnDuration, state.currentBurningFuel.heatPerSecond),
                     state.currentBurningFuel.item.id,
                     state.currentBurningFuel.item.count,
-                    state.currentBurningFuel.item.instances.Select(item => item.instanceId).ToArray()
+                    [.. state.currentBurningFuel.item.instances.Select(item => item.instanceId)]
                 )
             );
 
@@ -1064,7 +1092,7 @@ public class WorkshopRouter : ControllerBase
                     new BurnRate(burningModel.fuel.burnDuration, burningModel.fuel.heatPerSecond),
                     burningModel.fuel.item.id,
                     burningModel.fuel.item.count,
-                    burningModel.fuel.item.instances.Select(item => item.instanceId).ToArray()
+                    [.. burningModel.fuel.item.instances.Select(item => item.instanceId)]
                 )
             ) : null;
             return new Types.Workshop.SmeltingSlot(null, burning, null, null, null, null, 0, 0, 0, null, null, State.EMPTY, null, null, streamVersion);

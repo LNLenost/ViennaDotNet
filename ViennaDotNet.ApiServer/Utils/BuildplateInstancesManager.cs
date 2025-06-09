@@ -19,7 +19,7 @@ public sealed class BuildplateInstancesManager
     public BuildplateInstancesManager(EventBusClient eventBusClient)
     {
         this.eventBusClient = eventBusClient;
-        this.subscriber = eventBusClient.addSubscriber("buildplates", new Subscriber.SubscriberListener(
+        subscriber = eventBusClient.addSubscriber("buildplates", new Subscriber.SubscriberListener(
             handleEvent,
             () =>
             {
@@ -27,12 +27,37 @@ public sealed class BuildplateInstancesManager
                 Environment.Exit(1);
             }
         ));
-        this.requestSender = eventBusClient.addRequestSender();
+        requestSender = eventBusClient.addRequestSender();
     }
 
-    public async Task<string?> requestBuildplateInstance(string playerId, string buildplateId, InstanceType type, bool night)
+    public async Task<string?> requestBuildplateInstance(string? playerId, string? encounterId, string buildplateId, InstanceType type, long shutdownTime, bool night)
     {
-        Log.Information($"Finding buildplate instance for player {playerId} buildplate {buildplateId} type {type}");
+        if (playerId == null && type != InstanceType.ENCOUNTER)
+        {
+            throw new ArgumentException();
+        }
+
+        if (encounterId != null && type != InstanceType.ENCOUNTER)
+        {
+            throw new ArgumentException();
+        }
+
+        if (playerId != null && encounterId != null)
+        {
+            Log.Information($"Finding buildplate instance for buildplate {buildplateId} type {type} encounter {encounterId} player {playerId}");
+        }
+        else if (playerId != null)
+        {
+            Log.Information($"Finding buildplate instance for buildplate {buildplateId} type {type} player {playerId}");
+        }
+        else if (encounterId != null)
+        {
+            Log.Information($"Finding buildplate instance for buildplate {buildplateId} type {type} encounter {encounterId}");
+        }
+        else
+        {
+            Log.Information($"Finding buildplate instance for buildplate {buildplateId} type {type}");
+        }
 
         lock (instances)
         {
@@ -42,17 +67,23 @@ public sealed class BuildplateInstancesManager
                 foreach (string loopInstanceId in instanceIds)
                 {
                     InstanceInfo? instanceInfo = instances.GetOrDefault(loopInstanceId);
-                    if (instanceInfo is not null && instanceInfo.playerId == playerId && instanceInfo.type == type)
+                    if (instanceInfo is not null)
                     {
-                        Log.Information($"Found existing buildplate instance {loopInstanceId}");
-                        return loopInstanceId;
+                        if (instanceInfo.type == type &&
+                            instanceInfo.playerId == playerId &&
+                            instanceInfo.encounterId == encounterId
+                        )
+                        {
+                            Log.Information($"Found existing buildplate instance {loopInstanceId}");
+                            return loopInstanceId;
+                        }
                     }
                 }
             }
         }
 
         Log.Information("Did not find existing instance, starting new instance");
-        string? instanceId = await requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, buildplateId, night, type))).Task;
+        string? instanceId = await requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, encounterId, buildplateId, night, type, shutdownTime))).Task;
         if (instanceId == null)
         {
             Log.Error("Buildplate start request was rejected/ignored");
@@ -109,6 +140,11 @@ public sealed class BuildplateInstancesManager
                     try
                     {
                         startNotification = JsonConvert.DeserializeObject<StartNotification>(@event.data)!;
+                        if (startNotification.playerId == null && startNotification.type != InstanceType.ENCOUNTER)
+                        {
+                            Log.Warning("Bad start notification");
+                            return;
+                        }
 
                         lock (instances)
                         {
@@ -117,6 +153,7 @@ public sealed class BuildplateInstancesManager
                                 startNotification.type,
                                 startNotification.instanceId,
                                 startNotification.playerId,
+                                startNotification.encounterId,
                                 startNotification.buildplateId,
                                 startNotification.address,
                                 startNotification.port,
@@ -152,6 +189,7 @@ public sealed class BuildplateInstancesManager
                                 instanceInfo.type,
                                 instanceInfo.instanceId,
                                 instanceInfo.playerId,
+                                instanceInfo.encounterId,
                                 instanceInfo.buildplateId,
                                 instanceInfo.address,
                                 instanceInfo.port,
@@ -183,10 +221,12 @@ public sealed class BuildplateInstancesManager
     }
 
     private sealed record StartRequest(
-        string playerId,
+        string? playerId,
+        string? encounterId,
         string buildplateId,
         bool night,
-        InstanceType type
+        InstanceType type,
+        long shutdownTime
     );
 
     private sealed record PreviewRequest(
@@ -196,7 +236,8 @@ public sealed class BuildplateInstancesManager
 
     private sealed record StartNotification(
         string instanceId,
-        string playerId,
+        string? playerId,
+        string? encounterId,
         string buildplateId,
         string address,
         int port,
@@ -210,6 +251,7 @@ public sealed class BuildplateInstancesManager
         PLAY,
         SHARED_BUILD,
         SHARED_PLAY,
+        ENCOUNTER,
     }
 
     public sealed record InstanceInfo(
@@ -217,7 +259,8 @@ public sealed class BuildplateInstancesManager
 
         string instanceId,
 
-        string playerId,
+        string? playerId,
+        string? encounterId,
         string buildplateId,
 
         string address,

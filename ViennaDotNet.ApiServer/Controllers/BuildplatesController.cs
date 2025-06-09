@@ -2,11 +2,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Serilog;
-using System;
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
-using Uma.Uuid;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Buildplates;
 using ViennaDotNet.ApiServer.Types.Common;
@@ -17,6 +17,7 @@ using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Global;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.ObjectStore.Client;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -28,7 +29,8 @@ public class BuildplatesController : ControllerBase
     private static EarthDB earthDB => Program.DB;
     private static ObjectStoreClient objectStoreClient => Program.objectStore;
     private static BuildplateInstancesManager buildplateInstancesManager => Program.buildplateInstancesManager;
-    private static Catalog catalog => Program.Catalog;
+    private static Catalog catalog => Program.staticData.catalog;
+    private static TappablesManager tappablesManager => Program.tappablesManager;
 
     [HttpGet("buildplates")]
     public async Task<IActionResult> GetBuildplates(CancellationToken cancellationToken)
@@ -52,7 +54,7 @@ public class BuildplatesController : ControllerBase
 
         // not null is ensured in .Where
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        OwnedBuildplate[] ownedBuildplates = buildplatesModel.getBuildplates().Select(async buildplateEntry =>
+        OwnedBuildplate[] ownedBuildplates = [.. buildplatesModel.getBuildplates().Select(async buildplateEntry =>
         {
             byte[]? previewData = (await objectStoreClient.get(buildplateEntry.buildplate.previewObjectId).Task) as byte[];
             if (previewData == null)
@@ -80,7 +82,7 @@ public class BuildplatesController : ControllerBase
                 ""
             );
         }).Where(ownedBuildplate => ownedBuildplate != null)
-        .Select(task => task.Result).ToArray();
+        .Select(task => task.Result)];
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
 
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(ownedBuildplates));
@@ -326,6 +328,29 @@ public class BuildplatesController : ControllerBase
         return await getNewSharedBuildplateInstanceResponse(playerId, sharedBuildplateId, sharedBuildplateInstanceRequest.fullSize ? BuildplateInstancesManager.InstanceType.SHARED_PLAY : BuildplateInstancesManager.InstanceType.SHARED_BUILD, cancellationToken);
     }
 
+    private sealed record EncounterInstanceRequest(
+        string tileId
+    );
+
+    [HttpPost("multiplayer/encounters/{encounterId}/instances")]
+    public async Task<IActionResult> CreateEncounterInstance(string encounterId, CancellationToken cancellationToken)
+    {
+        string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(playerId))
+        {
+            return BadRequest();
+        }
+
+        var encounterInstanceRequest = await Request.Body.AsJsonAsync<EncounterInstanceRequest>(cancellationToken);
+
+        if (encounterInstanceRequest is null)
+        {
+            return BadRequest();
+        }
+
+        return await getNewEncounterBuildplateInstanceResponse(encounterId, encounterInstanceRequest.tileId, tappablesManager, cancellationToken);
+    }
+
     // TODO: should we restrict this to matching player ID?
     [HttpGet("multiplayer/partitions/{partitionId}/instances/{instanceId}")]
     public async Task<IActionResult> GetInstanceStatus(string partitionId, string instanceId, CancellationToken cancellationToken)
@@ -407,7 +432,7 @@ public class BuildplatesController : ControllerBase
             return NotFound();
         }
 
-        string? instanceId = await buildplateInstancesManager.requestBuildplateInstance(playerId, buildplateId, type, buildplate.night);
+        string? instanceId = await buildplateInstancesManager.requestBuildplateInstance(playerId, null, buildplateId, type, 0, buildplate.night);
         if (instanceId is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError);
@@ -450,7 +475,7 @@ public class BuildplatesController : ControllerBase
             return NotFound();
         }
 
-        string? instanceId = await buildplateInstancesManager.requestBuildplateInstance(playerId, sharedBuildplateId, type, sharedBuildplate.night);
+        string? instanceId = await buildplateInstancesManager.requestBuildplateInstance(playerId, null, sharedBuildplateId, type, 0, sharedBuildplate.night);
         if (instanceId is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError);
@@ -472,67 +497,143 @@ public class BuildplatesController : ControllerBase
         return Content(resp, "application/json");
     }
 
+    private async Task<IActionResult> getNewEncounterBuildplateInstanceResponse(string encounterId, string tileId, TappablesManager tappablesManager, CancellationToken cancellationToken)
+    {
+        TappablesManager.Encounter? encounter = tappablesManager.getEncounterWithId(encounterId, tileId);
+        if (encounter is null)
+        {
+            return NotFound();
+        }
+
+        string? instanceId = await buildplateInstancesManager.requestBuildplateInstance(null, encounterId, encounter.encounterBuildplateId, BuildplateInstancesManager.InstanceType.ENCOUNTER, encounter.spawnTime + encounter.validFor, false);
+
+        if (instanceId is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+
+        BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
+        if (instanceInfo is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+
+        BuildplateInstance? buildplateInstance = await instanceInfoToApiResponse(instanceInfo, cancellationToken);
+        if (buildplateInstance is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+
+        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
+        return Content(resp, "application/json");
+    }
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    private enum Source
+    {
+        PLAYER,
+        SHARED,
+        ENCOUNTER
+    }
+
     private static async Task<BuildplateInstance?> instanceInfoToApiResponse(BuildplateInstancesManager.InstanceInfo instanceInfo, CancellationToken cancellationToken)
     {
-        var (fullsize, gameplayMode, shared) = instanceInfo.type switch
+        var (fullsize, gameplayMode, source) = instanceInfo.type switch
         {
-            BuildplateInstancesManager.InstanceType.BUILD => (false, BuildplateInstance.GameplayMetadata.GameplayMode.BUILDPLATE, false),
-            BuildplateInstancesManager.InstanceType.PLAY => (true, BuildplateInstance.GameplayMetadata.GameplayMode.BUILDPLATE_PLAY, false),
-            BuildplateInstancesManager.InstanceType.SHARED_BUILD => (true, BuildplateInstance.GameplayMetadata.GameplayMode.SHARED_BUILDPLATE_PLAY, false),
-            BuildplateInstancesManager.InstanceType.SHARED_PLAY => (true, BuildplateInstance.GameplayMetadata.GameplayMode.SHARED_BUILDPLATE_PLAY, false),
-            _ => (false, BuildplateInstance.GameplayMetadata.GameplayMode.BUILDPLATE, false),
+            BuildplateInstancesManager.InstanceType.BUILD => (false, BuildplateInstance.GameplayMetadata.GameplayMode.BUILDPLATE, Source.PLAYER),
+            BuildplateInstancesManager.InstanceType.PLAY => (true, BuildplateInstance.GameplayMetadata.GameplayMode.BUILDPLATE_PLAY, Source.PLAYER),
+            BuildplateInstancesManager.InstanceType.SHARED_BUILD => (true, BuildplateInstance.GameplayMetadata.GameplayMode.SHARED_BUILDPLATE_PLAY, Source.SHARED),
+            BuildplateInstancesManager.InstanceType.SHARED_PLAY => (true, BuildplateInstance.GameplayMetadata.GameplayMode.SHARED_BUILDPLATE_PLAY, Source.SHARED),
+            BuildplateInstancesManager.InstanceType.ENCOUNTER => (true, BuildplateInstance.GameplayMetadata.GameplayMode.ENCOUNTER, Source.ENCOUNTER),
+            _ => throw new UnreachableException(),
         };
 
         int size;
         int offset;
         int scale;
-        if (!shared)
+        switch (source)
         {
-            Buildplates.Buildplate buildplate;
-            try
-            {
-                EarthDB.Results results = await new EarthDB.Query(false)
-                    .Get("buildplates", instanceInfo.playerId, typeof(Buildplates))
-                    .ExecuteAsync(earthDB, cancellationToken);
-                buildplate = ((Buildplates)results.Get("buildplates").Value).getBuildplate(instanceInfo.buildplateId);
-            }
-            catch (EarthDB.DatabaseException exception)
-            {
-                throw new ServerErrorException(exception);
-            }
+            case Source.PLAYER:
+                {
+                    Buildplates.Buildplate buildplate;
+                    try
+                    {
+                        EarthDB.Results results = await new EarthDB.Query(false)
+                            .Get("buildplates", instanceInfo.playerId, typeof(Buildplates))
+                            .ExecuteAsync(earthDB, cancellationToken);
+                        buildplate = ((Buildplates)results.Get("buildplates").Value).getBuildplate(instanceInfo.buildplateId);
+                    }
+                    catch (EarthDB.DatabaseException exception)
+                    {
+                        throw new ServerErrorException(exception);
+                    }
 
-            if (buildplate is null)
-            {
-                return null;
-            }
+                    if (buildplate is null)
+                    {
+                        return null;
+                    }
 
-            size = buildplate.size;
-            offset = buildplate.offset;
-            scale = buildplate.scale;
-        }
-        else
-        {
-            SharedBuildplates.SharedBuildplate? sharedBuildplate;
-            try
-            {
-                EarthDB.Results results = await new EarthDB.Query(false)
-                    .Get("sharedBuildplates", "", typeof(SharedBuildplates))
-                    .ExecuteAsync(earthDB, cancellationToken);
-                sharedBuildplate = ((SharedBuildplates)results.Get("sharedBuildplates").Value).getSharedBuildplate(instanceInfo.buildplateId);
-            }
-            catch (EarthDB.DatabaseException exception)
-            {
-                throw new ServerErrorException(exception);
-            }
+                    size = buildplate.size;
+                    offset = buildplate.offset;
+                    scale = buildplate.scale;
+                }
 
-            if (sharedBuildplate is null)
-            {
-                return null;
-            }
+                break;
+            case Source.SHARED:
+                {
+                    SharedBuildplates.SharedBuildplate? sharedBuildplate;
+                    try
+                    {
+                        EarthDB.Results results = await new EarthDB.Query(false)
+                            .Get("sharedBuildplates", "", typeof(SharedBuildplates))
+                            .ExecuteAsync(earthDB, cancellationToken);
+                        sharedBuildplate = ((SharedBuildplates)results.Get("sharedBuildplates").Value).getSharedBuildplate(instanceInfo.buildplateId);
+                    }
+                    catch (EarthDB.DatabaseException exception)
+                    {
+                        throw new ServerErrorException(exception);
+                    }
 
-            size = sharedBuildplate.size;
-            offset = sharedBuildplate.offset;
-            scale = sharedBuildplate.scale;
+                    if (sharedBuildplate is null)
+                    {
+                        return null;
+                    }
+
+                    size = sharedBuildplate.size;
+                    offset = sharedBuildplate.offset;
+                    scale = sharedBuildplate.scale;
+                }
+
+                break;
+            case Source.ENCOUNTER:
+                {
+                    EncounterBuildplates.EncounterBuildplate encounterBuildplate;
+
+                    try
+                    {
+                        EarthDB.Results results = await new EarthDB.Query(false)
+                            .Get("encounterBuildplates", "", typeof(EncounterBuildplates))
+                            .ExecuteAsync(earthDB, cancellationToken);
+                        encounterBuildplate = ((EncounterBuildplates)results.Get("encounterBuildplates").Value).getEncounterBuildplate(instanceInfo.buildplateId);
+                    }
+                    catch (EarthDB.DatabaseException exception)
+                    {
+                        throw new ServerErrorException(exception);
+                    }
+
+                    if (encounterBuildplate is null)
+                    {
+                        return null;
+                    }
+
+                    size = encounterBuildplate.size;
+                    offset = encounterBuildplate.offset;
+                    scale = encounterBuildplate.scale;
+                }
+
+                break;
+            default:
+                throw new UnreachableException();
         }
 
         return new BuildplateInstance(

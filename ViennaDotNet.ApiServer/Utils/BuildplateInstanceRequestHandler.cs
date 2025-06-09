@@ -2,7 +2,6 @@
 using Serilog;
 using System.Diagnostics;
 using System.Text;
-using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Utils;
@@ -19,9 +18,7 @@ namespace ViennaDotNet.ApiServer.Utils;
 public sealed class BuildplateInstanceRequestHandler
 {
     public static void start(EarthDB earthDB, EventBusClient eventBusClient, ObjectStoreClient objectStoreClient, Catalog catalog)
-    {
-        _ = new BuildplateInstanceRequestHandler(earthDB, eventBusClient, objectStoreClient, catalog);
-    }
+        => _ = new BuildplateInstanceRequestHandler(earthDB, eventBusClient, objectStoreClient, catalog);
 
     private readonly EarthDB earthDB;
     private readonly ObjectStoreClient objectStoreClient;
@@ -61,74 +58,88 @@ public sealed class BuildplateInstanceRequestHandler
                                 BuildplateLoadResponse? buildplateLoadResponse = handleLoadShared(sharedBuildplateLoadRequest.sharedBuildplateId);
                                 return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
                             }
+                        case "loadEncounter":
+
+                            {
+                                EncounterBuildplateLoadRequest? encounterBuildplateLoadRequest = readRawRequest<EncounterBuildplateLoadRequest>(request.data);
+                                if (encounterBuildplateLoadRequest is null)
+                                {
+                                    return null;
+                                }
+
+                                BuildplateLoadResponse? buildplateLoadResponse = handleLoadEncounter(encounterBuildplateLoadRequest.encounterBuildplateId);
+                                return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
+                            }
                         case "saved":
                             {
-                                RequestWithBuildplateId<WorldSavedMessage>? requestWithBuildplateId = readRequest<WorldSavedMessage>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<WorldSavedMessage>? requestWithInstanceId = readRequest<WorldSavedMessage>(request.data);
+                                if (requestWithInstanceId is null)
                                     return null;
 
-                                return handleSaved(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request.dataBase64, request.timestamp) ? "" : null;
+                                return handleSaved(requestWithInstanceId.instanceId, requestWithInstanceId.request.dataBase64, request.timestamp) ? "" : null;
                             }
                         case "playerConnected":
                             {
                                 Log.Debug("RequestHandler playerConnected");
-                                RequestWithBuildplateId<PlayerConnectedRequest>? requestWithBuildplateId = readRequest<PlayerConnectedRequest>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<PlayerConnectedRequest>? requestWithInstanceId = readRequest<PlayerConnectedRequest>(request.data);
+                                if (requestWithInstanceId is null)
                                     return null;
 
-                                PlayerConnectedResponse? playerConnectedResponse = handlePlayerConnected(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
+                                PlayerConnectedResponse? playerConnectedResponse = handlePlayerConnected(requestWithInstanceId.instanceId, requestWithInstanceId.request);
                                 return playerConnectedResponse != null ? JsonConvert.SerializeObject(playerConnectedResponse) : null;
                             }
                         case "playerDisconnected":
                             {
-                                RequestWithBuildplateId<PlayerDisconnectedRequest>? requestWithBuildplateId = readRequest<PlayerDisconnectedRequest>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<PlayerDisconnectedRequest>? requestWithInstanceId = readRequest<PlayerDisconnectedRequest>(request.data);
+                                if (requestWithInstanceId is null)
                                     return null;
 
-                                PlayerDisconnectedResponse? playerDisconnectedResponse = handlePlayerDisconnected(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
+                                PlayerDisconnectedResponse? playerDisconnectedResponse = handlePlayerDisconnected(requestWithInstanceId.instanceId, requestWithInstanceId.request, request.timestamp);
                                 return playerDisconnectedResponse != null ? JsonConvert.SerializeObject(playerDisconnectedResponse) : null;
                             }
                         case "getInventory":
                             {
-                                RequestWithBuildplateId<string>? requestWithBuildplateId = readRequest<string>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<string>? requestWithInstanceId = readRequest<string>(request.data);
+                                if (requestWithInstanceId is null)
                                     return null;
 
-                                InventoryResponse? inventoryResponse = handleGetInventory(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
+                                InventoryResponse? inventoryResponse = handleGetInventory(requestWithInstanceId.instanceId, requestWithInstanceId.request);
                                 return inventoryResponse is not null ? JsonConvert.SerializeObject(inventoryResponse) : null;
                             }
                         case "inventoryAdd":
                             {
-                                RequestWithBuildplateId<InventoryAddItemMessage>? requestWithBuildplateId = readRequest<InventoryAddItemMessage>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<InventoryAddItemMessage>? requestWithInstanceId = readRequest<InventoryAddItemMessage>(request.data);
+                                if (requestWithInstanceId is null)
                                     return null;
 
-                                return handleInventoryAdd(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request, request.timestamp) ? "" : null;
+                                return handleInventoryAdd(requestWithInstanceId.instanceId, requestWithInstanceId.request, request.timestamp) ? "" : null;
                             }
                         case "inventoryRemove":
                             {
-                                RequestWithBuildplateId<InventoryRemoveItemRequest>? requestWithBuildplateId = readRequest<InventoryRemoveItemRequest>(request.data);
+                                RequestWithInstanceId<InventoryRemoveItemRequest>? requestWithBuildplateId = readRequest<InventoryRemoveItemRequest>(request.data);
                                 if (requestWithBuildplateId is null)
                                     return null;
 
-                                object response = handleInventoryRemove(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
+                                object response = handleInventoryRemove(requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
                                 return response is not null ? JsonConvert.SerializeObject(response) : null;
                             }
                         case "inventoryUpdateWear":
                             {
-                                RequestWithBuildplateId<InventoryUpdateItemWearMessage>? requestWithBuildplateId = readRequest<InventoryUpdateItemWearMessage>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<InventoryUpdateItemWearMessage>? requestWithInstanceId = readRequest<InventoryUpdateItemWearMessage>(request.data);
+                                if (requestWithInstanceId is null)
                                     return null;
 
-                                return handleInventoryUpdateWear(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request) ? "" : null;
+                                return handleInventoryUpdateWear(requestWithInstanceId.instanceId, requestWithInstanceId.request) ? "" : null;
                             }
                         case "inventorySetHotbar":
                             {
-                                RequestWithBuildplateId<InventorySetHotbarMessage>? requestWithBuildplateId = readRequest<InventorySetHotbarMessage>(request.data);
-                                if (requestWithBuildplateId is null)
+                                RequestWithInstanceId<InventorySetHotbarMessage>? requestWithInstanceId = readRequest<InventorySetHotbarMessage>(request.data);
+                                if (requestWithInstanceId is null)
+                                {
                                     return null;
+                                }
 
-                                return handleInventorySetHotbar(requestWithBuildplateId.playerId, requestWithBuildplateId.buildplateId, requestWithBuildplateId.instanceId, requestWithBuildplateId.request) ? "" : null;
+                                return handleInventorySetHotbar(requestWithInstanceId.instanceId, requestWithInstanceId.request) ? "" : null;
                             }
                         default:
                             return null;
@@ -155,6 +166,10 @@ public sealed class BuildplateInstanceRequestHandler
 
     private sealed record SharedBuildplateLoadRequest(
         string sharedBuildplateId
+    );
+
+    private sealed record EncounterBuildplateLoadRequest(
+        string encounterBuildplateId
     );
 
     private sealed record BuildplateLoadResponse(
@@ -188,8 +203,8 @@ public sealed class BuildplateInstanceRequestHandler
     private BuildplateLoadResponse? handleLoadShared(string sharedBuildplateId)
     {
         EarthDB.Results results = new EarthDB.Query(false)
-                .Get("sharedBuildplates", "", typeof(SharedBuildplates))
-                .Execute(earthDB);
+            .Get("sharedBuildplates", "", typeof(SharedBuildplates))
+            .Execute(earthDB);
         SharedBuildplates sharedBuildplates = (SharedBuildplates)results.Get("sharedBuildplates").Value;
 
         SharedBuildplates.SharedBuildplate? sharedBuildplate = sharedBuildplates.getSharedBuildplate(sharedBuildplateId);
@@ -211,8 +226,49 @@ public sealed class BuildplateInstanceRequestHandler
         return new BuildplateLoadResponse(serverDataBase64);
     }
 
-    private bool handleSaved(string playerId, string buildplateId, string instanceId, string dataBase64, long timestamp)
+    private BuildplateLoadResponse? handleLoadEncounter(string encounterBuildplateId)
     {
+        EarthDB.Results results = new EarthDB.Query(false)
+            .Get("encounterBuildplates", "", typeof(EncounterBuildplates))
+            .Execute(earthDB);
+        EncounterBuildplates encounterBuildplates = (EncounterBuildplates)results.Get("encounterBuildplates").Value;
+
+        EncounterBuildplates.EncounterBuildplate? encounterBuildplate = encounterBuildplates.getEncounterBuildplate(encounterBuildplateId);
+        if (encounterBuildplate is null)
+        {
+            return null;
+        }
+
+        byte[]? serverData = objectStoreClient.get(encounterBuildplate.serverDataObjectId).Task.Result as byte[];
+        if (serverData is null)
+        {
+            Log.Error($"Data object {encounterBuildplate.serverDataObjectId} for encounter buildplate {encounterBuildplateId} could not be loaded from object store");
+            return null;
+        }
+
+        string serverDataBase64 = Convert.ToBase64String(serverData);
+
+        return new BuildplateLoadResponse(serverDataBase64);
+    }
+
+    private bool handleSaved(string instanceId, string dataBase64, long timestamp)
+    {
+        BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
+        if (instanceInfo is null)
+        {
+            return false;
+        }
+
+        if (instanceInfo.type != BuildplateInstancesManager.InstanceType.BUILD)
+        {
+            return false;
+        }
+
+        string? playerId = instanceInfo.playerId;
+        string buildplateId = instanceInfo.buildplateId;
+
+        Debug.Assert(playerId is not null);
+
         byte[] serverData;
         try
         {
@@ -284,8 +340,10 @@ public sealed class BuildplateInstanceRequestHandler
                             .Extra("oldPreviewObjectId", oldPreviewObjectId);
                     }
                     else
+                    {
                         return new EarthDB.Query(false)
                             .Extra("exists", false);
+                    }
                 })
                 .Execute(earthDB);
 
@@ -307,7 +365,10 @@ public sealed class BuildplateInstanceRequestHandler
             {
                 objectStoreClient.delete(serverDataObjectId);
                 if (previewObjectId != null)
+                {
                     objectStoreClient.delete(previewObjectId);
+                }
+
                 return false;
             }
         }
@@ -315,13 +376,15 @@ public sealed class BuildplateInstanceRequestHandler
         {
             objectStoreClient.delete(serverDataObjectId);
             if (previewObjectId != null)
+            {
                 objectStoreClient.delete(previewObjectId);
+            }
 
             throw;
         }
     }
 
-    private PlayerConnectedResponse? handlePlayerConnected(string playerId, string buildplateId, string instanceId, PlayerConnectedRequest playerConnectedRequest)
+    private PlayerConnectedResponse? handlePlayerConnected(string instanceId, PlayerConnectedRequest playerConnectedRequest)
     {
         // TODO: check join code etc.
 
@@ -401,8 +464,61 @@ public sealed class BuildplateInstanceRequestHandler
                         [.. sharedBuildplate.hotbar.Select(item => item is { count: > 0 } ? new InventoryResponse.HotbarItem(item.uuid, item.count, item.instanceId) : null)]
                     );
                 }
-                break;
 
+                break;
+            case BuildplateInstancesManager.InstanceType.ENCOUNTER:
+                {
+                    EarthDB.Results results = new EarthDB.Query(true)
+                        .Get("inventory", playerConnectedRequest.uuid, typeof(Inventory))
+                        .Get("hotbar", playerConnectedRequest.uuid, typeof(Hotbar))
+                        .Then(results1 =>
+                        {
+                            Inventory inventory = (Inventory)results1.Get("inventory").Value;
+                            Hotbar hotbar = (Hotbar)results1.Get("hotbar").Value;
+
+                            var inventoryResponseHotbar = new InventoryResponse.HotbarItem[7];
+                            Dictionary<string, int?> inventoryResponseStackableItems = [];
+                            LinkedList<InventoryResponse.Item> inventoryResponseNonStackableItems = [];
+                            for (int index = 0; index < 7; index++)
+                            {
+                                Hotbar.Item? item = hotbar.items[index];
+                                if (item is not null)
+                                {
+                                    if (item.instanceId is null)
+                                    {
+                                        inventory.takeItems(item.uuid, item.count);
+                                        inventoryResponseStackableItems[item.uuid] = inventoryResponseStackableItems.GetValueOrDefault(item.uuid, 0) + item.count;
+                                        inventoryResponseHotbar[index] = new InventoryResponse.HotbarItem(item.uuid, item.count, null);
+                                    }
+                                    else
+                                    {
+                                        int wear = inventory.takeItems(item.uuid, [item.instanceId])![0].wear;
+                                        inventoryResponseNonStackableItems.AddLast(new InventoryResponse.Item(item.uuid, 1, item.instanceId, wear));
+                                        inventoryResponseHotbar[index] = new InventoryResponse.HotbarItem(item.uuid, 1, item.instanceId);
+                                    }
+                                }
+                            }
+
+                            hotbar.limitToInventory(inventory);
+
+                            InventoryResponse inventoryResponse = new InventoryResponse(
+                            [
+                                .. inventoryResponseStackableItems.Select(entry => new InventoryResponse.Item(entry.Key, entry.Value, null, 0)),
+                                    .. inventoryResponseNonStackableItems
+                            ],
+                            inventoryResponseHotbar
+                        );
+                            return new EarthDB.Query(true)
+                                .Update("inventory", playerConnectedRequest.uuid, inventory)
+                                .Update("hotbar", playerConnectedRequest.uuid, hotbar)
+                                .Extra("inventoryResponse", inventoryResponse);
+                        })
+                        .Execute(earthDB);
+
+                    initialInventoryContents = (InventoryResponse)results.getExtra("inventoryResponse");
+                }
+
+                break;
             default:
                 {
                     // shouldn't happen, safe default
@@ -420,14 +536,100 @@ public sealed class BuildplateInstanceRequestHandler
         return playerConnectedResponse;
     }
 
-    private PlayerDisconnectedResponse? handlePlayerDisconnected(string playerId, string buildplateId, string instanceId, PlayerDisconnectedRequest playerDisconnectedRequest)
+    private PlayerDisconnectedResponse? handlePlayerDisconnected(string instanceId, PlayerDisconnectedRequest playerDisconnectedRequest, long timestamp)
     {
-        // TODO
+        BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
+        if (instanceInfo is null)
+        {
+            return null;
+        }
+
+        bool usesBackpack = instanceInfo.type == BuildplateInstancesManager.InstanceType.ENCOUNTER;
+        if (usesBackpack)
+        {
+            InventoryResponse? backpackContents = playerDisconnectedRequest.backpackContents;
+            if (backpackContents is null)
+            {
+                Log.Error("Expected backpack contents in player disconnected request");
+                return null;
+            }
+
+            EarthDB.Results results = new EarthDB.Query(true)
+                .Get("inventory", playerDisconnectedRequest.playerId, typeof(Inventory))
+                .Get("journal", playerDisconnectedRequest.playerId, typeof(Journal))
+                .Then(results1 =>
+                {
+                    Inventory inventory = (Inventory)results1.Get("inventory").Value;
+                    Journal journal = (Journal)results1.Get("journal").Value;
+
+                    LinkedList<string> unlockedJournalItems = [];
+                    foreach (InventoryResponse.Item item in backpackContents.items)
+                    {
+                        Catalog.ItemsCatalog.Item? catalogItem = catalog.itemsCatalog.getItem(item.id);
+                        if (catalogItem == null)
+                        {
+                            Log.Error("Backpack contents contained item that is not in item catalog");
+                            continue;
+                        }
+
+                        if (!catalogItem.stackable && item.instanceId is null)
+                        {
+                            Log.Error("Backpack contents contained non-stackable item without instance ID");
+                            continue;
+                        }
+
+                        if (catalogItem.stackable)
+                        {
+                            Debug.Assert(item.count is not null);
+                            inventory.addItems(item.id, item.count.Value);
+                        }
+                        else
+                        {
+                            Debug.Assert(item.instanceId is not null);
+
+                            inventory.addItems(item.id, [new NonStackableItemInstance(item.instanceId, item.wear)]);
+                        }
+
+                        journal.touchItem(item.id, timestamp);
+                        if (journal.getItem(item.id)!.amountCollected == 0)
+                        {
+                            unlockedJournalItems.AddLast(item.id);
+                        }
+
+                        journal.addCollectedItem(item.id, item.count!.Value);
+                    }
+
+                    Hotbar hotbar = new Hotbar();
+                    for (int index = 0; index < 7; index++)
+                    {
+                        InventoryResponse.HotbarItem? hotbarItem = backpackContents.hotbar[index];
+                        if (hotbarItem is not null)
+                        {
+                            hotbar.items[index] = new Hotbar.Item(hotbarItem.id, hotbarItem.count, hotbarItem.instanceId);
+                        }
+                    }
+
+                    hotbar.limitToInventory(inventory);
+
+                    EarthDB.Query query = new EarthDB.Query(true)
+                            .Update("inventory", playerDisconnectedRequest.playerId, inventory)
+                            .Update("hotbar", playerDisconnectedRequest.playerId, hotbar)
+                            .Update("journal", playerDisconnectedRequest.playerId, journal);
+                    foreach (string itemId in unlockedJournalItems)
+                    {
+                        query.Then(ActivityLogUtils.addEntry(playerDisconnectedRequest.playerId, new ActivityLog.JournalItemUnlockedEntry(timestamp, itemId)));
+                        query.Then(TokenUtils.addToken(playerDisconnectedRequest.playerId, new Tokens.JournalItemUnlockedToken(itemId)));
+                    }
+
+                    return query;
+                })
+                .Execute(earthDB);
+        }
 
         return new PlayerDisconnectedResponse();
     }
 
-    private InventoryResponse? handleGetInventory(string playerId, string buildplateId, string instanceId, string requestedInventoryPlayerId)
+    private InventoryResponse? handleGetInventory(string instanceId, string requestedInventoryPlayerId)
     {
         EarthDB.Results results = new EarthDB.Query(false)
             .Get("inventory", requestedInventoryPlayerId, typeof(Inventory))
@@ -437,23 +639,23 @@ public sealed class BuildplateInstanceRequestHandler
         Hotbar hotbar = (Hotbar)results.Get("hotbar").Value;
 
         return new InventoryResponse(
-            Enumerable.Concat(
+            [.. Enumerable.Concat(
                 inventory.getStackableItems()
                     .Select(item => new InventoryResponse.Item(item.id, item.count, null, 0)),
                 inventory.getNonStackableItems()
                     .SelectMany(item => item.instances
                     .Select(instance => new InventoryResponse.Item(item.id, 1, instance.instanceId, instance.wear)))
-            ).Where(item => item.count > 0).ToArray(),
-            hotbar.items.Select(item => item != null && item.count > 0 ? new InventoryResponse.HotbarItem(item.uuid, item.count, item.instanceId) : null).ToArray()
+            ).Where(item => item.count > 0)],
+            [.. hotbar.items.Select(item => item != null && item.count > 0 ? new InventoryResponse.HotbarItem(item.uuid, item.count, item.instanceId) : null)]
         );
     }
 
-    private bool handleInventoryAdd(string playerId, string buildplateId, string instanceId, InventoryAddItemMessage inventoryAddItemMessage, long timestamp)
+    private bool handleInventoryAdd(string instanceId, InventoryAddItemMessage inventoryAddItemMessage, long timestamp)
     {
-        ItemsCatalog.Item? catalogItem = catalog.itemsCatalog.items.Where(item => item.id == inventoryAddItemMessage.itemId).FirstOrDefault();
+        Catalog.ItemsCatalog.Item? catalogItem = catalog.itemsCatalog.getItem(inventoryAddItemMessage.itemId);
         if (catalogItem == null)
             return false;
-        if (!catalogItem.stacks && inventoryAddItemMessage.instanceId == null)
+        if (!catalogItem.stackable && inventoryAddItemMessage.instanceId == null)
             return false;
 
         EarthDB.Results results = new EarthDB.Query(true)
@@ -464,7 +666,7 @@ public sealed class BuildplateInstanceRequestHandler
                 Inventory inventory = (Inventory)results1.Get("inventory").Value;
                 Journal journal = (Journal)results1.Get("journal").Value;
 
-                if (catalogItem.stacks)
+                if (catalogItem.stackable)
                     inventory.addItems(inventoryAddItemMessage.itemId, inventoryAddItemMessage.count);
                 else
                     inventory.addItems(inventoryAddItemMessage.itemId, [new NonStackableItemInstance(inventoryAddItemMessage.instanceId!, inventoryAddItemMessage.wear)]);
@@ -481,17 +683,18 @@ public sealed class BuildplateInstanceRequestHandler
 
                 if (journalItemUnlocked)
                 {
-                    query.Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.JournalItemUnlockedEntry(timestamp, inventoryAddItemMessage.itemId)));
-                    query.Then(TokenUtils.addToken(playerId, new Tokens.JournalItemUnlockedToken(inventoryAddItemMessage.itemId)));
+                    query.Then(ActivityLogUtils.addEntry(inventoryAddItemMessage.playerId, new ActivityLog.JournalItemUnlockedEntry(timestamp, inventoryAddItemMessage.itemId)));
+                    query.Then(TokenUtils.addToken(inventoryAddItemMessage.playerId, new Tokens.JournalItemUnlockedToken(inventoryAddItemMessage.itemId)));
                 }
 
                 return query;
             })
             .Execute(earthDB);
+
         return true;
     }
 
-    private object handleInventoryRemove(string playerId, string buildplateId, string instanceId, InventoryRemoveItemRequest inventoryRemoveItemRequest)
+    private object handleInventoryRemove(string instanceId, InventoryRemoveItemRequest inventoryRemoveItemRequest)
     {
         EarthDB.Results results = new EarthDB.Query(true)
             .Get("inventory", inventoryRemoveItemRequest.playerId, typeof(Inventory))
@@ -539,7 +742,7 @@ public sealed class BuildplateInstanceRequestHandler
         return results.getExtra("result");
     }
 
-    private bool handleInventoryUpdateWear(string playerId, string buildplateId, string instanceId, InventoryUpdateItemWearMessage inventoryUpdateItemWearMessage)
+    private bool handleInventoryUpdateWear(string instanceId, InventoryUpdateItemWearMessage inventoryUpdateItemWearMessage)
     {
         EarthDB.Results results = new EarthDB.Query(true)
             .Get("inventory", inventoryUpdateItemWearMessage.playerId, typeof(Inventory))
@@ -566,7 +769,7 @@ public sealed class BuildplateInstanceRequestHandler
         return true;
     }
 
-    private bool handleInventorySetHotbar(string playerId, string buildplateId, string instanceId, InventorySetHotbarMessage inventorySetHotbarMessage)
+    private bool handleInventorySetHotbar(string instanceId, InventorySetHotbarMessage inventorySetHotbarMessage)
     {
         EarthDB.Results results = new EarthDB.Query(true)
             .Get("inventory", inventorySetHotbarMessage.playerId, typeof(Inventory))
@@ -590,11 +793,11 @@ public sealed class BuildplateInstanceRequestHandler
         return true;
     }
 
-    private static RequestWithBuildplateId<T>? readRequest<T>(string str)
+    private static RequestWithInstanceId<T>? readRequest<T>(string str)
     {
         try
         {
-            RequestWithBuildplateId<T>? request = JsonConvert.DeserializeObject<RequestWithBuildplateId<T>>(str);
+            RequestWithInstanceId<T>? request = JsonConvert.DeserializeObject<RequestWithInstanceId<T>>(str);
             return request;
         }
         catch (Exception ex)
@@ -618,9 +821,7 @@ public sealed class BuildplateInstanceRequestHandler
         }
     }
 
-    private sealed record RequestWithBuildplateId<T>(
-        string playerId,
-        string buildplateId,
+    private sealed record RequestWithInstanceId<T>(
         string instanceId,
         T request
     );

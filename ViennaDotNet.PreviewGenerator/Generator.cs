@@ -54,7 +54,7 @@ public static class Generator
                             {
                                 return new PreviewModel.SubChunk(
                                     new PreviewModel.Position(chunk.chunkX, subchunkY, chunk.chunkZ),
-                                    palette.Keys
+                                    [.. palette.Keys
                                         .Select(blockId =>
                                                 {
                                                     string? name = BedrockBlocks.getName(blockId);
@@ -66,8 +66,7 @@ public static class Generator
                                                         data++;
 
                                                     return new PreviewModel.SubChunk.PaletteEntry(name, data);
-                                                })
-                                                .ToArray(),
+                                                })],
                                     blocks
                                 );
                             }
@@ -77,7 +76,7 @@ public static class Generator
             .ToArray()!;
 
         // block entities seem to not be used by the client when rendering the preview anyway?
-        PreviewModel.BlockEntity[] blockEntities = chunks
+        PreviewModel.BlockEntity[] blockEntities = [.. chunks
             .SelectMany(chunk => chunk.blockEntities)
             .Where(blockEntity => blockEntity != null)
             .Select(blockEntity =>
@@ -107,8 +106,7 @@ public static class Generator
                 );
 
             })
-            .Where(blockEntity => blockEntity.type != -1)
-            .ToArray();
+            .Where(blockEntity => blockEntity.type != -1)];
 
         // TODO: entities
         PreviewModel previewModel = new PreviewModel(

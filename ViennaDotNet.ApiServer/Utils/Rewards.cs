@@ -1,8 +1,9 @@
-﻿using ViennaDotNet.ApiServer.Types.Catalog;
+﻿using System.Diagnostics;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Common;
 using ViennaDotNet.DB.Models.Player;
+using ViennaDotNet.StaticData;
 using static ViennaDotNet.DB.Models.Player.Tokens;
 
 namespace ViennaDotNet.ApiServer.Utils;
@@ -109,11 +110,13 @@ public sealed class Rewards
                     int quantity = entry.Value ?? 0; // idk, no null checks here, so I added ?? 0
                     if (quantity > 0)
                     {
-                        ItemsCatalog.Item item = catalog.itemsCatalog.items.Where(item1 => item1.id == id).First();
-                        if (item.stacks)
+                        Catalog.ItemsCatalog.Item? item = catalog.itemsCatalog.getItem(id);
+                        Debug.Assert(item is not null);
+
+                        if (item.stackable)
                             inventory.addItems(id, quantity);
                         else
-                            inventory.addItems(id, Java.IntStream.Range(0, quantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0)).ToArray());
+                            inventory.addItems(id, [.. Java.IntStream.Range(0, quantity).Select(index => new NonStackableItemInstance(U.RandomUuid().ToString(), 0))]);
 
                         journal.touchItem(id, currentTime);
                         if (journal.getItem(id)!.amountCollected == 0)
@@ -158,9 +161,9 @@ public sealed class Rewards
             rubies,
             experiencePoints,
             level,
-            items.Select(item => new Types.Common.Rewards.Item(item.Key, item.Value ?? 0)).ToArray(),
-            buildplates.Select(buildplate => new Types.Common.Rewards.Buildplate(buildplate)).ToArray(),
-            challenges.Select(challenge => new Types.Common.Rewards.Challenge(challenge)).ToArray(),
+            [.. items.Select(item => new Types.Common.Rewards.Item(item.Key, item.Value ?? 0))],
+            [.. buildplates.Select(buildplate => new Types.Common.Rewards.Buildplate(buildplate))],
+            [.. challenges.Select(challenge => new Types.Common.Rewards.Challenge(challenge))],
             [],
             []
         );
@@ -187,8 +190,8 @@ public sealed class Rewards
             experiencePoints,
             level,
             new(items),
-            buildplates.ToArray(),
-            challenges.ToArray()
+            [.. buildplates],
+            [.. challenges]
         );
     }
 }

@@ -25,7 +25,7 @@ public sealed class ActivityLog
 
     public Entry[] getEntries()
     {
-        return entries.ToArray();
+        return [.. entries];
     }
 
     public void addEntry(Entry entry)
