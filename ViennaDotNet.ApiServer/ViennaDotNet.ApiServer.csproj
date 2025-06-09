@@ -32,10 +32,4 @@
     <ProjectReference Include="..\ViennaDotNet.StaticData\ViennaDotNet.StaticData.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="data\resourcepacks\vanilla.zip">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

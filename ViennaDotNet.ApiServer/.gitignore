@@ -1,7 +1,4 @@
 obj/
 bin/
-logs/
-data/
 
-earth.db
 ViennaDotNet.ApiServer.csproj.user

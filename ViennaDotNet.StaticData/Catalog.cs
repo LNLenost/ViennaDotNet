@@ -1,5 +1,6 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+﻿using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.StaticData;
 
@@ -11,7 +12,7 @@ public sealed class Catalog
     public readonly RecipesCatalog recipesCatalog;
     public readonly NFCBoostsCatalog nfcBoostsCatalog;
 
-    public Catalog(string dir)
+    internal Catalog(string dir)
     {
         try
         {
@@ -39,7 +40,14 @@ public sealed class Catalog
 
         internal ItemsCatalog(string file)
         {
-            items = JsonConvert.DeserializeObject<Item[]>(File.ReadAllText(file));
+            using (var stream = File.OpenRead(file))
+            {
+                Item[]? items = JsonSerializer.Deserialize<Item[]>(stream);
+
+                Debug.Assert(items is not null);
+
+                this.items = items;
+            }
 
             HashSet<string> ids = [];
             HashSet<string> names = [];
@@ -49,6 +57,7 @@ public sealed class Catalog
                 {
                     throw new StaticDataException($"Duplicate item ID {item.id}");
                 }
+
                 if (!names.Add(item.name + "." + item.aux))
                 {
                     throw new StaticDataException($"Duplicate item name/aux {item.name} {item.aux}");
@@ -62,9 +71,7 @@ public sealed class Catalog
         }
 
         public Item? getItem(string id)
-        {
-            return this.itemsById.GetValueOrDefault(id);
-        }
+            => itemsById.GetValueOrDefault(id);
 
         public record Item(
             string id,
@@ -87,7 +94,7 @@ public sealed class Catalog
             Item.Experience experience
         )
         {
-            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonConverter(typeof(JsonStringEnumConverter))]
             public enum Type
             {
                 BLOCK,
@@ -99,7 +106,7 @@ public sealed class Catalog
                 ADVENTURE_SCROLL
             }
 
-            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonConverter(typeof(JsonStringEnumConverter))]
             public enum Category
             {
                 CONSTRUCTION,
@@ -121,7 +128,7 @@ public sealed class Catalog
                 BOOST_TAPPABLE_RADIUS
             }
 
-            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonConverter(typeof(JsonStringEnumConverter))]
             public enum Rarity
             {
                 COMMON,
@@ -132,7 +139,7 @@ public sealed class Catalog
                 OOBE
             }
 
-            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonConverter(typeof(JsonStringEnumConverter))]
             public enum UseType
             {
                 NONE,
@@ -186,7 +193,7 @@ public sealed class Catalog
                 BoostInfo.Effect[] effects
             )
             {
-                [JsonConverter(typeof(StringEnumConverter))]
+                [JsonConverter(typeof(JsonStringEnumConverter))]
                 public enum Type
                 {
                     POTION,
@@ -201,7 +208,7 @@ public sealed class Catalog
                     int duration
                 )
                 {
-                    [JsonConverter(typeof(StringEnumConverter))]
+                    [JsonConverter(typeof(JsonStringEnumConverter))]
                     public enum Type
                     {
                         ADVENTURE_XP,
@@ -220,7 +227,7 @@ public sealed class Catalog
                         TAPPABLE_RADIUS
                     }
 
-                    [JsonConverter(typeof(StringEnumConverter))]
+                    [JsonConverter(typeof(JsonStringEnumConverter))]
                     public enum Activation
                     {
                         INSTANT,
@@ -238,7 +245,7 @@ public sealed class Catalog
                 string? sound
             )
             {
-                [JsonConverter(typeof(StringEnumConverter))]
+                [JsonConverter(typeof(JsonStringEnumConverter))]
                 public enum Biome
                 {
                     NONE,
@@ -263,7 +270,7 @@ public sealed class Catalog
                     WARM_OCEAN
                 }
 
-                [JsonConverter(typeof(StringEnumConverter))]
+                [JsonConverter(typeof(JsonStringEnumConverter))]
                 public enum Behavior
                 {
                     NONE,
@@ -290,7 +297,14 @@ public sealed class Catalog
 
         internal ItemEfficiencyCategoriesCatalog(string file)
         {
-            efficiencyCategories = JsonConvert.DeserializeObject<EfficiencyCategory[]>(File.ReadAllText(file));
+            using (var stream = File.OpenRead(file))
+            {
+                EfficiencyCategory[]? efficiencyCategories = JsonSerializer.Deserialize<EfficiencyCategory[]>(stream);
+
+                Debug.Assert(efficiencyCategories is not null);
+
+                this.efficiencyCategories = efficiencyCategories;
+            }
 
             HashSet<string> names = [];
             foreach (EfficiencyCategory efficiencyCategory in efficiencyCategories)
@@ -324,7 +338,13 @@ public sealed class Catalog
 
         internal ItemJournalGroupsCatalog(string file)
         {
-            groups = JsonConvert.DeserializeObject<JournalGroup[]>(File.ReadAllText(file));
+            using (var stream = File.OpenRead(file))
+            {
+                JournalGroup[]? groups = JsonSerializer.Deserialize<JournalGroup[]>(File.ReadAllText(file));
+
+                Debug.Assert(groups is not null);
+                this.groups = groups;
+            }
 
             HashSet<string> ids = [];
             HashSet<string> names = [];
@@ -334,6 +354,7 @@ public sealed class Catalog
                 {
                     throw new StaticDataException($"Duplicate journal group ID {journalGroup.id}");
                 }
+
                 if (!names.Add(journalGroup.name))
                 {
                     throw new StaticDataException($"Duplicate journal group name {journalGroup.name}");
@@ -349,7 +370,7 @@ public sealed class Catalog
             string? defaultSound
         )
         {
-            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonConverter(typeof(JsonStringEnumConverter))]
             public enum ParentCollection
             {
                 BLOCKS,
@@ -375,7 +396,14 @@ public sealed class Catalog
 
         internal RecipesCatalog(string file)
         {
-            RecipesCatalogFile recipesCatalogFile = JsonConvert.DeserializeObject<RecipesCatalogFile>(File.ReadAllText(file));
+            RecipesCatalogFile? recipesCatalogFile;
+            using (var stream = File.OpenRead(file))
+            {
+                recipesCatalogFile = JsonSerializer.Deserialize<RecipesCatalogFile>(stream);
+            }
+
+            Debug.Assert(recipesCatalogFile is not null);
+
             crafting = recipesCatalogFile.crafting;
             smelting = recipesCatalogFile.smelting;
 
@@ -409,14 +437,10 @@ public sealed class Catalog
         }
 
         public CraftingRecipe? getCraftingRecipe(string id)
-        {
-            return this.craftingRecipesById.GetValueOrDefault(id);
-        }
+            => craftingRecipesById.GetValueOrDefault(id);
 
         public SmeltingRecipe? getSmeltingRecipe(string id)
-        {
-            return this.smeltingRecipesById.GetValueOrDefault(id);
-        }
+            => smeltingRecipesById.GetValueOrDefault(id);
 
         public sealed record CraftingRecipe(
             string id,
@@ -427,7 +451,7 @@ public sealed class Catalog
             CraftingRecipe.ReturnItem[] returnItems
         )
         {
-            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonConverter(typeof(JsonStringEnumConverter))]
             public enum Category
             {
                 CONSTRUCTION,
@@ -463,13 +487,17 @@ public sealed class Catalog
 
     public sealed class NFCBoostsCatalog
     {
-        record NFCBoostsCatalogFile(
-        // TODO
+        private sealed record NFCBoostsCatalogFile(
+            // TODO
         );
 
         internal NFCBoostsCatalog(string file)
         {
-            NFCBoostsCatalogFile nfcBoostsCatalogFile = JsonConvert.DeserializeObject<NFCBoostsCatalogFile>(File.ReadAllText(file));
+            NFCBoostsCatalogFile? nfcBoostsCatalogFile;
+            using (var stream = File.OpenRead(file))
+            {
+                nfcBoostsCatalogFile = JsonSerializer.Deserialize<NFCBoostsCatalogFile>(stream);
+            }
 
             // TODO
         }

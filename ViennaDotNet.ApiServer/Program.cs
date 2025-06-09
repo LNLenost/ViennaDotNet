@@ -50,6 +50,8 @@ public static class Program
     {
         TypeDescriptor.AddAttributes(typeof(Uuid), new TypeConverterAttribute(typeof(StringToUuidConv)));
 
+        Environment.CurrentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
         var log = new LoggerConfiguration()
             .WriteTo.Console()
             .WriteTo.File("logs/debug.txt", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 8338607, outputTemplate: "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")

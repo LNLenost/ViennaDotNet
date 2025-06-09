@@ -1,6 +1,8 @@
 ﻿using CommandLine;
 using Serilog;
+using System;
 using ViennaDotNet.EventBus.Client;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.TappablesGenerator;
 
@@ -9,6 +11,9 @@ internal static class Program
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     private sealed class Options
     {
+        [Option("dir", Default = "./data", Required = false, HelpText = "Static data path")]
+        public string StaticDataPath { get; set; }
+
         [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]
         public string EventBusConnectionString { get; set; }
     }
@@ -47,6 +52,20 @@ internal static class Program
         else
             return 1;
 
+        Log.Information("Loading static data");
+        StaticData.StaticData staticData;
+        try
+        {
+            staticData = new StaticData.StaticData(options.StaticDataPath);
+        }
+        catch (StaticDataException staticDataException)
+        {
+            Log.Fatal($"Failed to load static data: {staticDataException}");
+            return 1;
+        }
+
+        Log.Information("Loaded static data");
+
         Log.Information("Connecting to event bus");
         EventBusClient eventBusClient;
         try
@@ -61,8 +80,8 @@ internal static class Program
 
         Log.Information("Connected to event bus");
 
-        TappableGenerator tappableGenerator = new TappableGenerator();
-        EncounterGenerator encounterGenerator = new EncounterGenerator();
+        TappableGenerator tappableGenerator = new TappableGenerator(staticData);
+        EncounterGenerator encounterGenerator = new EncounterGenerator(staticData);
         Spawner[] spawner = new Spawner[1];
         ActiveTiles activeTiles = new ActiveTiles(eventBusClient, new ActiveTiles.ActiveTileListener(
             activeTile =>

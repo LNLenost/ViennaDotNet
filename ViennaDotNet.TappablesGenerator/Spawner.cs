@@ -57,8 +57,6 @@ public class Spawner
 
     public void spawnTile(int tileX, int tileY)
     {
-        Log.Information($"Spawning tappables for tile {tileX},{tileY}");
-
         long spawnCycleTime = this.spawnCycleTime;
         int spawnCycleIndex = this.spawnCycleIndex;
 
@@ -74,8 +72,6 @@ public class Spawner
     private void doSpawnCycle()
     {
         ActiveTiles.ActiveTile[] activeTiles = this.activeTiles.getActiveTiles(spawnCycleTime);
-
-        Log.Information($"Spawning tappables for {activeTiles.Length} tiles");
 
         while (spawnCycleTime < U.CurrentTimeMillis())
         {

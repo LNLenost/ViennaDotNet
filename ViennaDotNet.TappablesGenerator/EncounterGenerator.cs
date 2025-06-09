@@ -1,27 +1,13 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
+using System;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using ViennaDotNet.Common.Utils;
-using Rarity = ViennaDotNet.TappablesGenerator.EncounterGenerator.EncounterConfig.Rarity;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.TappablesGenerator;
-
-file static class RarityE
-{
-    private static readonly Dictionary<Rarity, float> valueToWeight = new Dictionary<Rarity, float>()
-    {
-        { Rarity.COMMON, 1.0f },
-        { Rarity.UNCOMMON, 0.75f },
-        { Rarity.RARE, 0.5f },
-        { Rarity.EPIC, 0.25f },
-        { Rarity.LEGENDARY, 0.125f },
-    };
-
-    public static float GetWeight(this Rarity rarity)
-        => valueToWeight[rarity];
-}
 
 public class EncounterGenerator
 {
@@ -30,101 +16,46 @@ public class EncounterGenerator
     private static readonly long MIN_DELAY = 1 * 60 * 1000;
     private static readonly long MAX_DELAY = 2 * 60 * 1000;
 
-    internal sealed record EncounterConfig(
-        string icon,
-        EncounterConfig.Rarity rarity,
-        string encounterBuildplateId,
-        int duration
-    )
+    private readonly StaticData.StaticData _staticData;
+    private readonly int _maxDuration;
+
+    private readonly Random _random;
+
+    public EncounterGenerator(StaticData.StaticData staticData)
     {
-        [JsonConverter(typeof(StringEnumConverter))]
-        public enum Rarity
-        {
-            // TODO: find actual weights
-            [EnumMember(Value = "Common")] COMMON,
-            [EnumMember(Value = "Uncommon")] UNCOMMON,
-            [EnumMember(Value = "Rare")] RARE,
-            [EnumMember(Value = "Epic")] EPIC,
-            [EnumMember(Value = "Legendary")] LEGENDARY,
-        }
-    }
+        _staticData = staticData;
 
-    private readonly EncounterConfig[] encounterConfigs;
-    private readonly float totalWeight;
-    private readonly int maxDuration;
-
-    private readonly Random random;
-
-    public EncounterGenerator()
-    {
-        try
-        {
-            Log.Information("Loading encounter generator data");
-            string dataDir = Path.Combine("data", "encounter");
-            List<EncounterConfig> encounterConfigs = [];
-            if (Directory.Exists(dataDir))
-            {
-                foreach (string file in Directory.EnumerateFiles(dataDir))
-                {
-                    encounterConfigs.Add(JsonConvert.DeserializeObject<EncounterConfig>(File.ReadAllText(file))!);
-                }
-            }
-
-            this.encounterConfigs = [.. encounterConfigs];
-            totalWeight = (float)encounterConfigs.Select(encounterConfig => (double)encounterConfig.rarity.GetWeight()).Sum();
-            maxDuration = encounterConfigs.Select(encounterConfig => encounterConfig.duration).DefaultIfEmpty().Max() * 1000;
-        }
-        catch (Exception exception)
-        {
-            Log.Fatal($"Failed to load encounter generator data {exception}");
-            Environment.Exit(1);
-        }
-
-        if (encounterConfigs.Length == 0)
+        if (_staticData.encountersConfig.encounters.Length == 0)
         {
             Log.Warning("No encounter configs provided");
         }
+        _maxDuration = _staticData.encountersConfig.encounters.Select(encounterConfig => (int)encounterConfig.duration).DefaultIfEmpty().Max() * 1000;
 
-        random = new Random();
+        _random = new Random();
     }
 
     public long getMaxEncounterLifetime()
     {
-        return MAX_DELAY + this.maxDuration + 30 * 1000;
+        return MAX_DELAY + this._maxDuration + 30 * 1000;
     }
 
     public Encounter[] generateEncounters(int tileX, int tileY, long currentTime)
     {
-        if (encounterConfigs.Length == 0)
+        if (_staticData.encountersConfig.encounters.Length == 0)
         {
             return [];
         }
 
         List<Encounter> encounters = [];
-        if (random.Next(0, CHANCE_PER_TILE) == 0)
+        if (_random.Next(0, CHANCE_PER_TILE) == 0)
         {
-            long spawnDelay = random.NextInt64(MIN_DELAY, MAX_DELAY + 1);
+            long spawnDelay = _random.NextInt64(MIN_DELAY, MAX_DELAY + 1);
 
-            float configPos = random.NextSingle() * totalWeight;
-            EncounterConfig? encounterConfig = null;
-            foreach (EncounterConfig encounterConfig1 in encounterConfigs)
-            {
-                encounterConfig = encounterConfig1;
-                configPos -= encounterConfig1.rarity.GetWeight();
-                if (configPos <= 0.0f)
-                {
-                    break;
-                }
-            }
-
-            if (encounterConfig is null)
-            {
-                throw new UnreachableException();
-            }
+            EncountersConfig.EncounterConfig encounterConfig = _staticData.encountersConfig.encounters[_random.Next(0, _staticData.encountersConfig.encounters.Length)];
 
             float[] tileBounds = getTileBounds(tileX, tileY);
-            float lat = random.NextSingle(tileBounds[1], tileBounds[0]);
-            float lon = random.NextSingle(tileBounds[2], tileBounds[3]);
+            float lat = _random.NextSingle(tileBounds[1], tileBounds[0]);
+            float lon = _random.NextSingle(tileBounds[2], tileBounds[3]);
 
             Encounter encounter = new Encounter(
                     U.RandomUuid().ToString(),
