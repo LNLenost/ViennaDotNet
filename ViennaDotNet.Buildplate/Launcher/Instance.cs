@@ -418,6 +418,17 @@ public class Instance
                 }
 
                 break;
+            case "findPlayer":
+                {
+                    FindPlayerIdRequest? findPlayerIdRequest = readJson<FindPlayerIdRequest>(request.data);
+                    if (findPlayerIdRequest is not null)
+                    {
+                        // TODO
+                        return findPlayerIdRequest.minecraftName;
+                    }
+                }
+
+                break;
         }
 
         return null;
