@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using ViennaDotNet.ApiServer.Types.Common;
-using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.StaticData;
 
@@ -11,41 +10,6 @@ namespace ViennaDotNet.ApiServer.Utils;
 
 public static class BoostUtils
 {
-    public static string? activatePotion(Boosts boosts, string itemId, long currentTime, Catalog.ItemsCatalog itemsCatalog)
-    {
-        Catalog.ItemsCatalog.Item item = itemsCatalog.getItem(itemId) ?? throw new ArgumentException(nameof(itemId));
-
-        Catalog.ItemsCatalog.Item.BoostInfo? boostInfo = item.boostInfo;
-        if (boostInfo is null || boostInfo.type is not Catalog.ItemsCatalog.Item.BoostInfo.Type.POTION)
-        {
-            throw new ArgumentException();
-        }
-
-        boosts.prune(currentTime);
-
-        string instanceId = U.RandomUuid().ToString();
-        long duration = boostInfo.duration is not null ? boostInfo.duration.Value : boostInfo.effects.Select(effect => effect.duration).DefaultIfEmpty().Max();
-
-        int newIndex = -1;
-        for (int index = 0; index < boosts.activeBoosts.Length; index++)
-        {
-            if (boosts.activeBoosts[index] is null)
-            {
-                newIndex = index;
-                break;
-            }
-        }
-
-        if (newIndex == -1)
-        {
-            return null;
-        }
-
-        boosts.activeBoosts[newIndex] = new Boosts.ActiveBoost(instanceId, itemId, currentTime, duration);
-
-        return instanceId;
-    }
-
     public static Catalog.ItemsCatalog.Item.BoostInfo.Effect[] getActiveEffects(Boosts boosts, long currentTime, Catalog.ItemsCatalog itemsCatalog)
     {
         LinkedList<Catalog.ItemsCatalog.Item.BoostInfo.Effect> effects = [];
@@ -165,6 +129,9 @@ public static class BoostUtils
             keepXp
         );
     }
+
+    public static int getMaxPlayerHealth(Boosts boosts, long currentTime, Catalog.ItemsCatalog itemsCatalog)
+        => 20 + (20 * BoostUtils.getActiveStatModifiers(boosts, currentTime, itemsCatalog).maxPlayerHealthMultiplier) / 100;
 
     public static Effect boostEffectToApiResponse(Catalog.ItemsCatalog.Item.BoostInfo.Effect effect)
     {

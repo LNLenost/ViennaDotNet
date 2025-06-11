@@ -5,12 +5,12 @@ using Newtonsoft.Json;
 using Serilog;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
-using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.StaticData;
+using Effect = ViennaDotNet.ApiServer.Types.Common.Effect;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -31,22 +31,42 @@ public class BoostsController : ControllerBase
             return BadRequest();
         }
 
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
-        Boosts boosts;
+        EarthDB.Results results;
         try
         {
-            EarthDB.Results results = await new EarthDB.Query(false)
+            results = await new EarthDB.Query(true)
                 .Get("boosts", playerId, typeof(Boosts))
+                .Get("profile", playerId, typeof(Profile))
+                .Then(results1 =>
+                {
+                    // I know this is ugly, we're making changes to the database in response to a GET request, but if we don't then the client won't correctly update the player health bar in the UI
+
+                    Boosts boosts = (Boosts)results1.Get("boosts").Value;
+                    Profile profile = (Profile)results1.Get("profile").Value;
+
+                    if (pruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, catalog.itemsCatalog))
+                    {
+                        return new EarthDB.Query(true)
+                            .Update("boosts", playerId, boosts)
+                            .Update("profile", playerId, profile)
+                            .Extra("boosts", boosts);
+                    }
+                    else
+                    {
+                        return new EarthDB.Query(false)
+                            .Extra("boosts", boosts);
+                    }
+                })
                 .ExecuteAsync(earthDB, cancellation);
-            boosts = (Boosts)results.Get("boosts").Value;
         }
         catch (EarthDB.DatabaseException exception)
         {
             throw new ServerErrorException(exception);
         }
 
-        boosts.prune(requestStartedOn);
+        Boosts boosts = (Boosts)results.getExtra("boosts");
 
         var potions = new Types.Boost.Boosts.Potion[boosts.activeBoosts.Length];
         LinkedList<Types.Boost.Boosts.ActiveEffect> activeEffects = [];
@@ -145,7 +165,7 @@ public class BoostsController : ControllerBase
             hasActiveBoost ? TimeFormatter.FormatTime(expiry) : null
         );
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(boostsResponse));
+        string resp = JsonConvert.SerializeObject(new EarthApiResponse(boostsResponse, new EarthApiResponse.Updates(results)));
         return Content(resp, "application/json");
     }
 
@@ -158,7 +178,7 @@ public class BoostsController : ControllerBase
             return BadRequest();
         }
 
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         Catalog.ItemsCatalog.Item? item = catalog.itemsCatalog.getItem(itemId);
 
@@ -172,25 +192,61 @@ public class BoostsController : ControllerBase
             EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("inventory", playerId, typeof(Inventory))
                 .Get("boosts", playerId, typeof(Boosts))
+                .Get("profile", playerId, typeof(Profile))
                 .Then(results1 =>
                 {
                     Inventory inventory = (Inventory)results1.Get("inventory").Value;
                     Boosts boosts = (Boosts)results1.Get("boosts").Value;
+                    Profile profile = (Profile)results1.Get("profile").Value;
+                    bool profileChanged = false;
+
+                    if (pruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, catalog.itemsCatalog))
+                    {
+                        profileChanged = true;
+                    }
 
                     if (!inventory.takeItems(itemId, 1))
                     {
                         return new EarthDB.Query(false);
                     }
 
-                    if (BoostUtils.activatePotion(boosts, itemId, requestStartedOn, catalog.itemsCatalog) is null)
+                    string instanceId = U.RandomUuid().ToString();
+                    long duration = item.boostInfo.duration is not null ? item.boostInfo.duration.Value : item.boostInfo
+                    .effects.Select(effect => effect.duration).DefaultIfEmpty().Max();
+                    int newIndex = -1;
+                    for (int index = 0; index < boosts.activeBoosts.Length; index++)
+                    {
+                        if (boosts.activeBoosts[index] == null)
+                        {
+                            newIndex = index;
+                            break;
+                        }
+                    }
+
+                    if (newIndex == -1)
                     {
                         return new EarthDB.Query(false);
                     }
 
-                    return new EarthDB.Query(true)
-                        .Update("inventory", playerId, inventory)
-                        .Update("boosts", playerId, boosts)
-                        .Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.BoostActivatedEntry(requestStartedOn, itemId)));
+                    boosts.activeBoosts[newIndex] = new Boosts.ActiveBoost(instanceId, itemId, requestStartedOn, duration);
+
+                    if (item.boostInfo.effects.Any(effect => effect.type is Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.HEALTH))
+                    {
+                        // TODO: determine if we should add new player health straight away
+                        profileChanged = true;
+                    }
+
+                    EarthDB.Query updateQuery = new EarthDB.Query(true);
+                    updateQuery.Update("inventory", playerId, inventory);
+                    updateQuery.Update("boosts", playerId, boosts);
+
+                    if (profileChanged)
+                    {
+                        updateQuery.Update("profile", playerId, profile);
+                    }
+
+                    updateQuery.Then(ActivityLogUtils.addEntry(playerId, new ActivityLog.BoostActivatedEntry(requestStartedOn, itemId)));
+                    return updateQuery;
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
@@ -212,16 +268,23 @@ public class BoostsController : ControllerBase
             return BadRequest();
         }
 
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
             EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("boosts", playerId, typeof(Boosts))
+                .Get("profile", playerId, typeof(Profile))
                 .Then(results1 =>
                 {
                     Boosts boosts = (Boosts)results1.Get("boosts").Value;
-                    boosts.prune(requestStartedOn);
+                    Profile profile = (Profile)results1.Get("profile").Value;
+                    bool profileChanged = false;
+
+                    if (pruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, catalog.itemsCatalog))
+                    {
+                        profileChanged = true;
+                    }
 
                     Boosts.ActiveBoost? activeBoost = boosts.get(instanceId);
                     if (activeBoost is null)
@@ -245,8 +308,24 @@ public class BoostsController : ControllerBase
                         }
                     }
 
-                    return new EarthDB.Query(true)
-                        .Update("boosts", playerId, boosts);
+                    if (item.boostInfo.effects.Any(effect => effect.type is Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.HEALTH))
+                    {
+                        profileChanged = true;
+                        int maxPlayerHealth = BoostUtils.getMaxPlayerHealth(boosts, requestStartedOn, catalog.itemsCatalog);
+                        if (profile.health > maxPlayerHealth)
+                        {
+                            profile.health = maxPlayerHealth;
+                        }
+                    }
+
+                    EarthDB.Query updateQuery = new EarthDB.Query(true);
+                    updateQuery.Update("boosts", playerId, boosts);
+                    if (profileChanged)
+                    {
+                        updateQuery.Update("profile", playerId, profile);
+                    }
+
+                    return updateQuery;
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
@@ -257,5 +336,24 @@ public class BoostsController : ControllerBase
         {
             throw new ServerErrorException(exception);
         }
+    }
+
+    private static bool pruneBoostsAndUpdateProfile(Boosts boosts, Profile profile, long currentTime, Catalog.ItemsCatalog itemsCatalog)
+    {
+        bool profileChanged = false;
+        Boosts.ActiveBoost[] prunedBoosts = boosts.prune(currentTime);
+        if (prunedBoosts.SelectMany(activeBoost => itemsCatalog.getItem(activeBoost.itemId)!.boostInfo!.effects).Any(effect => effect.type is Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.HEALTH))
+        {
+            profileChanged = true;
+        }
+
+        int maxPlayerHealth = BoostUtils.getMaxPlayerHealth(boosts, currentTime, itemsCatalog);
+        if (profile.health > maxPlayerHealth)
+        {
+            profile.health = maxPlayerHealth;
+            profileChanged = true;
+        }
+
+        return profileChanged;
     }
 }

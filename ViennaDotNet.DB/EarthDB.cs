@@ -100,7 +100,9 @@ public sealed class EarthDB : IDisposable
         public Query Update(string type, string id, object value)
         {
             if (!_write)
+            {
                 throw new UnsupportedOperationException();
+            }
 
             writeObjects.Add(new WriteObjectsEntry(type, id, value));
             return this;
@@ -516,7 +518,7 @@ public sealed class EarthDB : IDisposable
 
         public Result Get(string name)
             => !getValues.TryGetValue(name, out Result? value) || value is null
-            ? throw new KeyNotFoundException()
+            ? throw new KeyNotFoundException($"Key '{name}' was not found.")
             : value;
 
         public GenericResult<T> GetGeneric<T>(string name)

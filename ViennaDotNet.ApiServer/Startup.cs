@@ -45,7 +45,7 @@ public class Startup
     {
         app.Use(async (context, next) =>
         {
-            context.Items.Add("RequestStartedOn", DateTime.UtcNow);
+            context.Items.Add("RequestStartedOn", DateTimeOffset.UtcNow);
             await next();
         });
 

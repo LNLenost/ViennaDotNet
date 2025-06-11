@@ -73,21 +73,15 @@ public class TappableGenerator
                 throw new InvalidOperationException();
             }
 
-            LinkedList<Tappable.Drops.Item> items = new();
+            LinkedList<Tappable.Item> items = new();
 
             foreach (string itemId in dropSet.items)
             {
                 TappablesConfig.TappableConfig.ItemCount itemCount = tappableConfig.itemCounts[itemId];
-                items.AddLast(new Tappable.Drops.Item(itemId, _random.Next(itemCount.min, itemCount.max + 1)));
+                items.AddLast(new Tappable.Item(itemId, _random.Next(itemCount.min, itemCount.max + 1)));
             }
 
-            int experiencePoints = items.Select(item => _staticData.catalog.itemsCatalog.getItem(item.id)!.experience.tappable * item.count).Sum();
             Tappable.Rarity rarity = Enum.Parse<Tappable.Rarity>(items.Select(item => _staticData.catalog.itemsCatalog.getItem(item.id)!.rarity).Max().ToString());
-
-            Tappable.Drops drops = new Tappable.Drops(
-                experiencePoints,
-                [.. items]
-            );
 
             Tappable tappable = new Tappable(
                 U.RandomUuid().ToString(),
@@ -97,7 +91,7 @@ public class TappableGenerator
                 duration,
                 tappableConfig.icon,
                 rarity,
-                drops
+                [.. items]
             );
             tappables.AddLast(tappable);
         }

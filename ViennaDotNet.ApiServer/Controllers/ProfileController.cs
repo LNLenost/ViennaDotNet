@@ -9,7 +9,6 @@ using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.StaticData;
-using DatabaseException = ViennaDotNet.DB.EarthDB.DatabaseException;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -24,14 +23,29 @@ public class ProfileController : ControllerBase
     [HttpGet("profile/{userId}")]
     public async Task<IActionResult> GetProfile(string userId, CancellationToken cancellationToken)
     {
-        Profile profile = (Profile)(await new EarthDB.Query(false)
-            .Get("profile", userId.ToLowerInvariant(), typeof(Profile))
-            .ExecuteAsync(earthDB, cancellationToken))
-            .Get("profile").Value;
+        // TODO: decide if we should allow requests for profiles of other players
+        userId = userId.ToLowerInvariant();
+
+        // request.timestamp
+        long requestStartedOn = HttpContext.GetTimestamp();
+
+        EarthDB.Results results = await new EarthDB.Query(false)
+            .Get("profile", userId, typeof(Profile))
+            .Get("boosts", userId, typeof(Boosts))
+            .ExecuteAsync(earthDB, cancellationToken);
+
+        Profile profile = (Profile)results.Get("profile").Value;
+        Boosts boosts = (Boosts)results.Get("boosts").Value;
 
         Levels.Level[] levels = staticData.levels.levels;
         int currentLevelExperience = profile.experience - (profile.level > 1 ? (profile.level - 2 < levels.Length ? levels[profile.level - 2].experienceRequired : levels[^1].experienceRequired) : 0);
         int experienceRemaining = profile.level - 1 < levels.Length ? levels[profile.level - 1].experienceRequired - profile.experience : 0;
+
+        int maxPlayerHealth = BoostUtils.getMaxPlayerHealth(boosts, requestStartedOn, staticData.catalog.itemsCatalog);
+        if (profile.health > maxPlayerHealth)
+        {
+            profile.health = maxPlayerHealth;
+        }
 
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Profile.Profile(
             Java.IntStream.Range(0, levels.Length).Collect(() => new Dictionary<int, Types.Profile.Profile.Level>(), (hashMap, levelIndex) =>
@@ -44,7 +58,7 @@ public class ProfileController : ControllerBase
             currentLevelExperience,
             experienceRemaining,
             profile.health,
-            profile.health / 20.0f * 100.0f)));
+            (profile.health / (float)maxPlayerHealth) * 100.0f)));
 
         return Content(resp, "application/json");
     }
@@ -67,7 +81,7 @@ public class ProfileController : ControllerBase
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(profile.rubies.purchased + profile.rubies.earned));
             return Content(resp, "application/json");
         }
-        catch (DatabaseException ex)
+        catch (EarthDB.DatabaseException ex)
         {
             Log.Error("Exception in GetRubies", ex);
             return StatusCode(500);
@@ -92,7 +106,7 @@ public class ProfileController : ControllerBase
             string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Profile.SplitRubies(profile.rubies.purchased, profile.rubies.earned)));
             return Content(resp, "application/json");
         }
-        catch (DatabaseException ex)
+        catch (EarthDB.DatabaseException ex)
         {
             Log.Error("Exception in GetRubies", ex);
             return StatusCode(500);

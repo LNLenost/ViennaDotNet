@@ -10,7 +10,7 @@ public record Tappable(
     long validFor,
     string icon,
     Rarity rarity,
-    Drops drops
+    Item[] items
 )
 {
     public enum Rarity
@@ -22,16 +22,8 @@ public record Tappable(
         LEGENDARY
     }
 
-    public record Drops(
-        int experiencePoints,
-        Drops.Item[] items
-    )
-    {
-        public record Item(
-            string id,
-            int count
-        )
-        {
-        }
-    }
+    public sealed record Item(
+        string id,
+        int count
+    );
 }

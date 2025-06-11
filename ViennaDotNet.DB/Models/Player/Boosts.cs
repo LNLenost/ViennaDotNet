@@ -13,20 +13,22 @@ public sealed class Boosts
     }
 
     public ActiveBoost? get(string instanceId)
-    {
-        return activeBoosts.FirstOrDefault(activeBoost => activeBoost is not null && activeBoost.instanceId == instanceId);
-    }
+        => activeBoosts.FirstOrDefault(activeBoost => activeBoost is not null && activeBoost.instanceId == instanceId);
 
-    public void prune(long currentTime)
+    public ActiveBoost[] prune(long currentTime)
     {
+        LinkedList<ActiveBoost> prunedBoosts = [];
         for (int index = 0; index < activeBoosts.Length; index++)
         {
             ActiveBoost? activeBoost = activeBoosts[index];
             if (activeBoost is not null && activeBoost.startTime + activeBoost.duration < currentTime)
             {
                 activeBoosts[index] = null;
+                prunedBoosts.AddLast(activeBoost);
             }
         }
+
+        return [.. prunedBoosts];
     }
 
     public sealed record ActiveBoost(

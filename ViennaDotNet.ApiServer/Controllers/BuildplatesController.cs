@@ -126,7 +126,7 @@ public class BuildplatesController : ControllerBase
             return BadRequest();
         }
 
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         DB.Models.Player.Inventory inventory;
         Hotbar hotbar;

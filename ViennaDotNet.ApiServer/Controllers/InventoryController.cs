@@ -2,12 +2,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Inventory;
 using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
+using ViennaDotNet.DB.Models.Common;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.StaticData;
 
@@ -26,7 +28,9 @@ public class InventoryController : ControllerBase
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
+        {
             return BadRequest();
+        }
 
         DB.Models.Player.Inventory inventoryModel;
         Hotbar hotbarModel;
@@ -110,11 +114,15 @@ public class InventoryController : ControllerBase
     {
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(playerId))
+        {
             return BadRequest();
+        }
 
         SetHotbarRequestItem[]? setHotbarRequestItems = await Request.Body.AsJsonAsync<SetHotbarRequestItem[]>(cancellationToken);
         if (setHotbarRequestItems is null || setHotbarRequestItems.Length != 7)
+        {
             return BadRequest();
+        }
 
         DB.Models.Player.Inventory inventoryModel;
         Hotbar hotbarModel;
@@ -158,11 +166,94 @@ public class InventoryController : ControllerBase
         return Content(resp, "application/json");
     }
 
+    [HttpPost("{itemId}/consume")]
+    public async Task<IActionResult> ConsumeItem(string itemId, CancellationToken cancellationToken)
+    {
+        string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(playerId))
+        {
+            return BadRequest();
+        }
+
+        // request.timestamp
+        long requestStartedOn = HttpContext.GetTimestamp();
+
+        Catalog.ItemsCatalog.Item? item = catalog.itemsCatalog.getItem(itemId);
+
+        if (item is null || item.consumeInfo is null)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            EarthDB.Results results = await new EarthDB.Query(true)
+                .Get("inventory", playerId, typeof(DB.Models.Player.Inventory))
+                .Get("journal", playerId, typeof(Journal))
+                .Get("profile", playerId, typeof(Profile))
+                .Get("boosts", playerId, typeof(Boosts))
+                .Then(results1 =>
+                {
+                    DB.Models.Player.Inventory inventory = (DB.Models.Player.Inventory)results1.Get("inventory").Value;
+                    Journal journal = (Journal)results1.Get("journal").Value;
+                    Profile profile = (Profile)results1.Get("profile").Value;
+                    Boosts boosts = (Boosts)results1.Get("boosts").Value;
+
+                    EarthDB.Query query = new EarthDB.Query(true);
+
+                    if (!inventory.takeItems(itemId, 1))
+                    {
+                        return new EarthDB.Query(false);
+                    }
+
+                    string? returnItemId = item.consumeInfo.returnItemId;
+                    if (returnItemId is not null)
+                    {
+                        Catalog.ItemsCatalog.Item? returnItem = catalog.itemsCatalog.getItem(returnItemId);
+                        Debug.Assert(returnItem is not null);
+
+                        if (returnItem.stackable)
+                        {
+                            inventory.addItems(returnItemId, 1);
+                        }
+                        else
+                        {
+                            inventory.addItems(returnItemId, [new NonStackableItemInstance(U.RandomUuid().ToString(), 0)]);
+                        }
+                        if (journal.addCollectedItem(returnItemId, requestStartedOn, 1) == 0)
+                        {
+                            if (returnItem.journalEntry is not null)
+                            {
+                                query.Then(TokenUtils.addToken(playerId, new Tokens.JournalItemUnlockedToken(returnItemId)));
+                            }
+                        }
+                    }
+
+                    int maxPlayerHealth = BoostUtils.getMaxPlayerHealth(boosts, requestStartedOn, catalog.itemsCatalog);
+                    profile.health += item.consumeInfo.heal;
+                    if (profile.health > maxPlayerHealth)
+                    {
+                        profile.health = maxPlayerHealth;
+                    }
+
+                    query.Update("inventory", playerId, inventory).Update("journal", playerId, journal).Update("profile", playerId, profile);
+
+                    return query;
+                })
+                .ExecuteAsync(earthDB, cancellationToken);
+
+            string resp = JsonConvert.SerializeObject(new EarthApiResponse(null, new EarthApiResponse.Updates(results)));
+            return Content(resp, "application/json");
+        }
+        catch (EarthDB.DatabaseException exception)
+        {
+            throw new ServerErrorException(exception);
+        }
+    }
+
     private sealed record SetHotbarRequestItem(
         string id,
         int count,
         string? instanceId
-    )
-    {
-    }
+    );
 }

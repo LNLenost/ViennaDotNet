@@ -53,7 +53,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         EarthDB.Results.GenericResult<CraftingSlots> craftingSlotsResult;
         EarthDB.Results.GenericResult<SmeltingSlots> smeltingSlotsResult;
@@ -105,7 +105,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
@@ -131,7 +131,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
@@ -159,7 +159,7 @@ public class WorkshopRouter : ControllerBase
         }
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         StartRequestCrafting? startRequest = await Request.Body.AsJsonAsync<StartRequestCrafting>(cancellationToken);
         if (startRequest is null || startRequest.multiplier < 1)
@@ -331,7 +331,7 @@ public class WorkshopRouter : ControllerBase
         }
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         StartRequestSmelting? startRequest = await Request.Body.AsJsonAsync<StartRequestSmelting>(cancellationToken);
         if (startRequest is null || startRequest.multiplier < 1)
@@ -499,7 +499,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
@@ -555,7 +555,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
@@ -620,7 +620,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
@@ -689,7 +689,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         try
         {
@@ -769,7 +769,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJsonAsync<ExpectedPurchasePrice>(cancellationToken);
         if (expectedPurchasePrice is null || expectedPurchasePrice.expectedPurchasePrice < 0)
@@ -835,7 +835,7 @@ public class WorkshopRouter : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         ExpectedPurchasePrice? expectedPurchasePrice = await Request.Body.AsJsonAsync<ExpectedPurchasePrice>(cancellationToken);
         if (expectedPurchasePrice is null || expectedPurchasePrice.expectedPurchasePrice < 0)

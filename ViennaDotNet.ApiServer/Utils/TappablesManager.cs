@@ -289,7 +289,7 @@ public sealed class TappablesManager
         long validFor,
         string icon,
         Tappable.Rarity rarity,
-        Tappable.Drops drops
+        Tappable.Item[] items
     )
     {
         [JsonConverter(typeof(StringEnumConverter))]
@@ -302,18 +302,10 @@ public sealed class TappablesManager
             LEGENDARY
         }
 
-        public record Drops(
-            int experiencePoints,
-            Drops.Item[] items
-        )
-        {
-            public record Item(
-                string id,
-                int count
-            )
-            {
-            }
-        }
+        public sealed record Item(
+            string id,
+            int count
+        );
     }
 
     public sealed record Encounter(

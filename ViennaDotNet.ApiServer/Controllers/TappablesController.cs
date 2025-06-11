@@ -10,6 +10,7 @@ using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
+using ViennaDotNet.StaticData;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -29,7 +30,7 @@ public class TappablesController : ControllerBase
         if (string.IsNullOrEmpty(playerId))
             return BadRequest();
 
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         tappablesManager.notifyTileActive(playerId, lat, lon);
 
@@ -108,7 +109,7 @@ public class TappablesController : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         TappablesManager.Tappable? tappable = tappablesManager.getTappableWithId(tappableRequest.id, tileId);
         if (tappable == null || !tappablesManager.isTappableValidFor(tappable, requestStartedOn, tappableRequest.playerCoordinate.latitude, tappableRequest.playerCoordinate.longitude))
@@ -120,9 +121,11 @@ public class TappablesController : ControllerBase
         {
             EarthDB.Results results = await new EarthDB.Query(true)
                 .Get("redeemedTappables", playerId, typeof(RedeemedTappables))
+                .Get("boosts", playerId, typeof(Boosts))
                 .Then(results1 =>
                 {
                     EarthDB.Query query = new EarthDB.Query(true);
+                    Boosts boosts = (Boosts)results1.Get("boosts").Value;
 
                     RedeemedTappables redeemedTappables = (RedeemedTappables)results1.Get("redeemedTappables").Value;
 
@@ -132,12 +135,43 @@ public class TappablesController : ControllerBase
                         return query;
                     }
 
-                    var rewards = new Utils.Rewards();
-                    rewards.addExperiencePoints(tappable.drops.experiencePoints);
-                    foreach (TappablesManager.Tappable.Drops.Item item in tappable.drops.items)
-                        rewards.addItem(item.id, item.count);
+                    int experiencePointsGlobalMultiplier = 0;
 
-                    rewards.addRubies(1);
+                    Dictionary<string, int> experiencePointsPerItemMultiplier = [];
+                    foreach (var effect in BoostUtils.getActiveEffects(boosts, requestStartedOn, staticData.catalog.itemsCatalog))
+                    {
+                        if (effect.type is Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.ITEM_XP)
+                        {
+                            if (effect.applicableItemIds is not null && effect.applicableItemIds.Length > 0)
+                            {
+                                foreach (string itemId in effect.applicableItemIds)
+                                {
+                                    experiencePointsPerItemMultiplier[itemId] = experiencePointsPerItemMultiplier.GetValueOrDefault(itemId) + effect.value;
+                                }
+                            }
+                            else
+                            {
+                                experiencePointsGlobalMultiplier += effect.value;
+                            }
+                        }
+                    }
+
+                    var rewards = new Utils.Rewards();
+
+                    foreach (TappablesManager.Tappable.Item item in tappable.items)
+                    {
+                        rewards.addItem(item.id, item.count);
+                        int experiencePoints = staticData.catalog.itemsCatalog.getItem(item.id)!.experience.tappable;
+                        int experiencePointsMultiplier = experiencePointsGlobalMultiplier + experiencePointsPerItemMultiplier.GetValueOrDefault(item.id);
+                        if (experiencePointsMultiplier > 0)
+                        {
+                            experiencePoints = (experiencePoints * (experiencePointsMultiplier + 100)) / 100;
+                        }
+
+                        rewards.addExperiencePoints(experiencePoints * item.count);
+                    }
+
+                    rewards.addRubies(1); // TODO
 
                     redeemedTappables.add(tappable.id, tappable.spawnTime + tappable.validFor);
                     redeemedTappables.prune(requestStartedOn);

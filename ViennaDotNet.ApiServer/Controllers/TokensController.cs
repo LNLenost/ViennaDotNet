@@ -54,7 +54,7 @@ public class TokensController : ControllerBase
             return BadRequest();
 
         // request.timestamp
-        long requestStartedOn = ((DateTime)HttpContext.Items["RequestStartedOn"]!).ToUnixTimeMilliseconds();
+        long requestStartedOn = HttpContext.GetTimestamp();
 
         Tokens.Token? token;
         try
