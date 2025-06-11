@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Serilog;
+using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Utils;
@@ -21,6 +22,11 @@ public class BoostsController : ControllerBase
 {
     private static EarthDB earthDB => Program.DB;
     private static Catalog catalog => Program.staticData.catalog;
+
+    private sealed record ActiveBoostInfo(
+        Boosts.ActiveBoost activeBoost,
+        Catalog.ItemsCatalog.Item.BoostInfo boostInfo
+    );
 
     [HttpGet("boosts")]
     public async Task<IActionResult> GetBoosts(CancellationToken cancellation)
@@ -68,29 +74,25 @@ public class BoostsController : ControllerBase
 
         Boosts boosts = (Boosts)results.getExtra("boosts");
 
-        var potions = new Types.Boost.Boosts.Potion[boosts.activeBoosts.Length];
-        LinkedList<Types.Boost.Boosts.ActiveEffect> activeEffects = [];
-        LinkedList<Types.Boost.Boosts.ScenarioBoost> triggeredOnDeathBoosts = [];
-        long expiry = long.MaxValue;
-        bool hasActiveBoost = false;
-        for (int index = 0; index < boosts.activeBoosts.Length; index++)
+        Types.Boost.Boosts.Potion?[] potions = [.. boosts.activeBoosts.Select(activeBoost =>
         {
-            Boosts.ActiveBoost? activeBoost = boosts.activeBoosts[index];
+            if (activeBoost is null)
+            {
+                return null;
+            }
+            else
+            {
+                return new Types.Boost.Boosts.Potion(true, activeBoost.itemId, activeBoost.instanceId, TimeFormatter.FormatTime(activeBoost.startTime + activeBoost.duration));
+            }
+        })];
 
-            if (activeBoost == null)
+        Dictionary<string, ActiveBoostInfo> activeBoostsWithInfo = [];
+        foreach (Boosts.ActiveBoost activeBoost in boosts.activeBoosts)
+        {
+            if (activeBoost is null)
             {
                 continue;
             }
-
-            hasActiveBoost = true;
-
-            long boostExpiry = activeBoost.startTime + activeBoost.duration;
-            if (boostExpiry < expiry)
-            {
-                expiry = boostExpiry;
-            }
-
-            potions[index] = new Types.Boost.Boosts.Potion(true, activeBoost.itemId, activeBoost.instanceId, TimeFormatter.FormatTime(boostExpiry));
 
             Catalog.ItemsCatalog.Item? item = catalog.itemsCatalog.getItem(activeBoost.itemId);
             if (item is null || item.boostInfo is null)
@@ -98,41 +100,47 @@ public class BoostsController : ControllerBase
                 continue;
             }
 
-            if (!item.boostInfo.triggeredOnDeath)
+            ActiveBoostInfo? existingActiveBoostInfo = activeBoostsWithInfo.GetValueOrDefault(item.boostInfo.name);
+            if (existingActiveBoostInfo != null && existingActiveBoostInfo.boostInfo.level > item.boostInfo.level)
             {
-                foreach (Catalog.ItemsCatalog.Item.BoostInfo.Effect effect in item.boostInfo.effects)
+                continue;
+            }
+
+            activeBoostsWithInfo[item.boostInfo.name] = new ActiveBoostInfo(activeBoost, item.boostInfo);
+        }
+
+        LinkedList<Types.Boost.Boosts.ActiveEffect> activeEffects = [];
+        LinkedList<Types.Boost.Boosts.ScenarioBoost> triggeredOnDeathBoosts = [];
+        foreach (ActiveBoostInfo activeBoostInfo in activeBoostsWithInfo.Values)
+        {
+            if (!activeBoostInfo.boostInfo.triggeredOnDeath)
+            {
+                foreach (Catalog.ItemsCatalog.Item.BoostInfo.Effect effect in activeBoostInfo.boostInfo.effects)
                 {
                     if (effect.activation != Catalog.ItemsCatalog.Item.BoostInfo.Effect.Activation.TIMED)
                     {
-                        Log.Warning($"Active boost {activeBoost.itemId} has effect with activation {effect.activation}");
+                        Log.Warning($"Active boost {activeBoostInfo.activeBoost.itemId} has effect with activation {effect.activation}");
                         continue;
                     }
 
-                    long effectExpiry = activeBoost.startTime + effect.duration;
-
-                    if (effectExpiry < expiry)
-                    {
-                        expiry = effectExpiry;
-                    }
-
-                    activeEffects.AddLast(new Types.Boost.Boosts.ActiveEffect(BoostUtils.boostEffectToApiResponse(effect), TimeFormatter.FormatTime(effectExpiry)));
+                    activeEffects.AddLast(new Types.Boost.Boosts.ActiveEffect(BoostUtils.boostEffectToApiResponse(effect, activeBoostInfo.activeBoost.duration), TimeFormatter.FormatTime(activeBoostInfo.activeBoost.startTime + activeBoostInfo.activeBoost.duration)));
                 }
             }
             else
             {
                 LinkedList<Effect> effects = [];
-                foreach (Catalog.ItemsCatalog.Item.BoostInfo.Effect effect in item.boostInfo.effects)
+                foreach (Catalog.ItemsCatalog.Item.BoostInfo.Effect effect in activeBoostInfo.boostInfo.effects)
                 {
                     if (effect.activation != Catalog.ItemsCatalog.Item.BoostInfo.Effect.Activation.TRIGGERED)
                     {
-                        Log.Warning($"Active boost {activeBoost.itemId} has effect with activation {effect.activation}");
+                        Log.Warning($"Active boost {activeBoostInfo.activeBoost.itemId} has effect with activation {effect.activation}");
                         continue;
                     }
 
-                    effects.AddLast(BoostUtils.boostEffectToApiResponse(effect));
+                    effects.AddLast(BoostUtils.boostEffectToApiResponse(effect, activeBoostInfo.activeBoost.duration));
                 }
 
-                triggeredOnDeathBoosts.AddLast(new Types.Boost.Boosts.ScenarioBoost(true, activeBoost.instanceId, [.. effects], TimeFormatter.FormatTime(boostExpiry)));
+                triggeredOnDeathBoosts.AddLast(new Types.Boost.Boosts.ScenarioBoost(true, activeBoostInfo.activeBoost.instanceId, [.. effects], TimeFormatter.FormatTime(activeBoostInfo.activeBoost.startTime + activeBoostInfo.activeBoost.duration)));
             }
         }
 
@@ -159,10 +167,10 @@ public class BoostsController : ControllerBase
                 statModiferValues.maxPlayerHealthMultiplier > 0 ? (20 * statModiferValues.maxPlayerHealthMultiplier) / 100 + 20 : 20,
                 statModiferValues.craftingSpeedMultiplier > 0 ? statModiferValues.craftingSpeedMultiplier / 100 + 1 : null,
                 statModiferValues.smeltingSpeedMultiplier > 0 ? statModiferValues.smeltingSpeedMultiplier / 100 + 1 : null,
-                statModiferValues.foodMultiplier > 0 ? statModiferValues.foodMultiplier + 100 : null
+                statModiferValues.foodMultiplier > 0 ? (statModiferValues.foodMultiplier + 100) / 100f : null
             ),
             [],
-            hasActiveBoost ? TimeFormatter.FormatTime(expiry) : null
+            activeBoostsWithInfo.Count != 0 ? TimeFormatter.FormatTime(activeBoostsWithInfo.Values.Select(activeBoostInfo => activeBoostInfo.activeBoost.startTime + activeBoostInfo.activeBoost.duration).Min()) : null
         );
 
         string resp = JsonConvert.SerializeObject(new EarthApiResponse(boostsResponse, new EarthApiResponse.Updates(results)));
@@ -210,16 +218,28 @@ public class BoostsController : ControllerBase
                         return new EarthDB.Query(false);
                     }
 
-                    string instanceId = U.RandomUuid().ToString();
-                    long duration = item.boostInfo.duration is not null ? item.boostInfo.duration.Value : item.boostInfo
-                    .effects.Select(effect => effect.duration).DefaultIfEmpty().Max();
                     int newIndex = -1;
+                    bool extendExisting = false;
                     for (int index = 0; index < boosts.activeBoosts.Length; index++)
                     {
-                        if (boosts.activeBoosts[index] == null)
+                        var boost = boosts.activeBoosts[index];
+
+                        if (boost is not null && boost.itemId == itemId)
                         {
                             newIndex = index;
                             break;
+                        }
+                    }
+
+                    if (!extendExisting)
+                    {
+                        for (int index = 0; index < boosts.activeBoosts.Length; index++)
+                        {
+                            if (boosts.activeBoosts[index] == null)
+                            {
+                                newIndex = index;
+                                break;
+                            }
                         }
                     }
 
@@ -228,12 +248,21 @@ public class BoostsController : ControllerBase
                         return new EarthDB.Query(false);
                     }
 
-                    boosts.activeBoosts[newIndex] = new Boosts.ActiveBoost(instanceId, itemId, requestStartedOn, duration);
-
-                    if (item.boostInfo.effects.Any(effect => effect.type is Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.HEALTH))
+                    if (extendExisting)
                     {
-                        // TODO: determine if we should add new player health straight away
-                        profileChanged = true;
+                        Boosts.ActiveBoost? existingBoost = boosts.activeBoosts[newIndex];
+                        Debug.Assert(existingBoost is not null);
+
+                        boosts.activeBoosts[newIndex] = new Boosts.ActiveBoost(existingBoost.instanceId, existingBoost.itemId, existingBoost.startTime, existingBoost.duration + item.boostInfo.duration);
+                    }
+                    else
+                    {
+                        boosts.activeBoosts[newIndex] = new Boosts.ActiveBoost(U.RandomUuid().ToString(), itemId, requestStartedOn, item.boostInfo.duration);
+                        if (item.boostInfo.effects.Any(effect => effect.type is Catalog.ItemsCatalog.Item.BoostInfo.Effect.Type.HEALTH))
+                        {
+                            // TODO: determine if we should add new player health straight away
+                            profileChanged = true;
+                        }
                     }
 
                     EarthDB.Query updateQuery = new EarthDB.Query(true);

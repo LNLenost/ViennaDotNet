@@ -46,7 +46,7 @@ public sealed record Boosts(
         int? maximumPlayerHealth,
         int? craftingSpeed,
         int? smeltingFuelIntensity,
-        int? foodHealthRate
+        float? foodHealthRate
     );
 
     public sealed record MiniFigRecord(

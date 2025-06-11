@@ -188,7 +188,7 @@ public sealed class Catalog
                 int? level,
                 BoostInfo.Type type,
                 bool canBeRemoved,
-                long? duration,
+                long duration,
                 bool triggeredOnDeath,
                 BoostInfo.Effect[] effects
             )
@@ -204,8 +204,7 @@ public sealed class Catalog
                     Effect.Type type,
                     int value,
                     string[] applicableItemIds,
-                    Effect.Activation activation,
-                    long duration
+                    Effect.Activation activation
                 )
                 {
                     [JsonConverter(typeof(JsonStringEnumConverter))]

@@ -198,10 +198,10 @@ public class CatalogController : ControllerBase
                     boostAttributeString,
                     false,
                     item.boostInfo.canBeRemoved,
-                    item.boostInfo.duration is not null ? TimeFormatter.FormatDuration(item.boostInfo.duration.Value) : null,
+                    TimeFormatter.FormatDuration(item.boostInfo.duration),
                     true,
                     item.boostInfo.level,
-                    [.. item.boostInfo.effects.Select(BoostUtils.boostEffectToApiResponse)],
+                    [.. item.boostInfo.effects.Select(effect => BoostUtils.boostEffectToApiResponse(effect, item.boostInfo.duration))],
                     item.boostInfo.triggeredOnDeath ? "Death" : null,
                     null
                 );

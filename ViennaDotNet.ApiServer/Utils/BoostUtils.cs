@@ -12,7 +12,7 @@ public static class BoostUtils
 {
     public static Catalog.ItemsCatalog.Item.BoostInfo.Effect[] getActiveEffects(Boosts boosts, long currentTime, Catalog.ItemsCatalog itemsCatalog)
     {
-        LinkedList<Catalog.ItemsCatalog.Item.BoostInfo.Effect> effects = [];
+        Dictionary<string, Catalog.ItemsCatalog.Item.BoostInfo> activeBoostsInfo = [];
         foreach (var activeBoost in boosts.activeBoosts)
         {
             if (activeBoost is null)
@@ -31,12 +31,24 @@ public static class BoostUtils
                 continue;
             }
 
-            foreach (var effect in item.boostInfo.effects
+            Catalog.ItemsCatalog.Item.BoostInfo? existingBoostInfo = activeBoostsInfo.GetValueOrDefault(item.boostInfo.name);
+            if (existingBoostInfo is not null && existingBoostInfo.level > item.boostInfo.level)
+            {
+                continue;
+            }
+
+            activeBoostsInfo[item.boostInfo.name] = item.boostInfo;
+        }
+
+        LinkedList<Catalog.ItemsCatalog.Item.BoostInfo.Effect> effects = [];
+        foreach (Catalog.ItemsCatalog.Item.BoostInfo boostInfo in activeBoostsInfo.Values)
+        {
+            foreach (var effect in boostInfo.effects
                 .Where(effect => effect.activation switch
                 {
                     CICIBIEActivation.INSTANT => false,
                     CICIBIEActivation.TRIGGERED => true,
-                    CICIBIEActivation.TIMED => activeBoost.startTime + effect.duration >= currentTime,
+                    CICIBIEActivation.TIMED => true, // already filtered for expiry time above
                     _ => throw new UnreachableException(),
                 }))
             {
@@ -133,7 +145,7 @@ public static class BoostUtils
     public static int getMaxPlayerHealth(Boosts boosts, long currentTime, Catalog.ItemsCatalog itemsCatalog)
         => 20 + (20 * BoostUtils.getActiveStatModifiers(boosts, currentTime, itemsCatalog).maxPlayerHealthMultiplier) / 100;
 
-    public static Effect boostEffectToApiResponse(Catalog.ItemsCatalog.Item.BoostInfo.Effect effect)
+    public static Effect boostEffectToApiResponse(Catalog.ItemsCatalog.Item.BoostInfo.Effect effect, long boostDuration)
     {
         string effectTypeString = effect.type switch
         {
@@ -164,7 +176,7 @@ public static class BoostUtils
 
         return new Effect(
             effectTypeString,
-            effect.activation == CICIBIEActivation.TIMED ? TimeFormatter.FormatDuration(effect.duration) : null,
+            effect.activation == CICIBIEActivation.TIMED ? TimeFormatter.FormatDuration(boostDuration) : null,
             effect.type == CICIBIEType.RETENTION_BACKPACK || effect.type == CICIBIEType.RETENTION_HOTBAR || effect.type == CICIBIEType.RETENTION_XP ? null : effect.value,
             effect.type switch
             {

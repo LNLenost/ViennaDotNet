@@ -220,6 +220,7 @@ public class InventoryController : ControllerBase
                         {
                             inventory.addItems(returnItemId, [new NonStackableItemInstance(U.RandomUuid().ToString(), 0)]);
                         }
+
                         if (journal.addCollectedItem(returnItemId, requestStartedOn, 1) == 0)
                         {
                             if (returnItem.journalEntry is not null)
@@ -229,8 +230,16 @@ public class InventoryController : ControllerBase
                         }
                     }
 
+                    int healing = item.consumeInfo.heal;
+
+                    int healingMultiplier = BoostUtils.getActiveStatModifiers(boosts, requestStartedOn, catalog.itemsCatalog).foodMultiplier;
+                    if (healingMultiplier > 0)
+                    {
+                        healing = (healing * (healingMultiplier + 100)) / 100;
+                    }
+
                     int maxPlayerHealth = BoostUtils.getMaxPlayerHealth(boosts, requestStartedOn, catalog.itemsCatalog);
-                    profile.health += item.consumeInfo.heal;
+                    profile.health += healing;
                     if (profile.health > maxPlayerHealth)
                     {
                         profile.health = maxPlayerHealth;
