@@ -32,46 +32,43 @@ public static class Generator
             .SelectMany(chunk =>
             {
                 return Java.IntStream.Range(0, 16)
-                        .Select(subchunkY =>
+                    .Select(subchunkY =>
+                    {
+                        Dictionary<int, int> palette = [];
+                        int[] blocks = new int[4096];
+                        for (int x = 0; x < 16; x++)
                         {
-                            Dictionary<int, int> palette = [];
-                            int[] blocks = new int[4096];
-                            for (int x = 0; x < 16; x++)
+                            for (int y = 0; y < 16; y++)
                             {
-                                for (int y = 0; y < 16; y++)
+                                for (int z = 0; z < 16; z++)
                                 {
-                                    for (int z = 0; z < 16; z++)
-                                    {
-                                        int blockId = chunk.blocks[(x * 256 + y + subchunkY * 16) * 16 + z];
-                                        blocks[(x * 16 + y) * 16 + z] = palette.ComputeIfAbsent(blockId, blockId1 => palette.Count);
-                                    }
+                                    int blockId = chunk.blocks[(x * 256 + y + subchunkY * 16) * 16 + z];
+                                    blocks[(x * 16 + y) * 16 + z] = palette.ComputeIfAbsent(blockId, blockId1 => palette.Count);
                                 }
                             }
+                        }
 
-                            if (palette.Count == 1 && palette.ContainsKey(BedrockBlocks.AIR))
-                                return null;
-                            else
-                            {
-                                return new PreviewModel.SubChunk(
-                                    new PreviewModel.Position(chunk.chunkX, subchunkY, chunk.chunkZ),
-                                    [.. palette.Keys
-                                        .Select(blockId =>
-                                                {
-                                                    string? name = BedrockBlocks.getName(blockId);
-                                                    if (name == null)
-                                                        throw new InvalidOperationException();
+                        if (palette.Count == 1 && palette.ContainsKey(BedrockBlocks.AIR))
+                            return null;
+                        else
+                        {
+                            return new PreviewModel.SubChunk(
+                                new PreviewModel.Position(chunk.chunkX, subchunkY, chunk.chunkZ),
+                                [.. palette.Keys
+                                    .Select(blockId =>
+                                        {
+                                            string? name = BedrockBlocks.getName(blockId) ?? throw new InvalidOperationException();
+                                            int data = 0;
+                                            while (blockId - data - 1 >= 0 && name == BedrockBlocks.getName(blockId - data - 1))
+                                                data++;
 
-                                                    int data = 0;
-                                                    while (blockId - data - 1 >= 0 && name == BedrockBlocks.getName(blockId - data - 1))
-                                                        data++;
-
-                                                    return new PreviewModel.SubChunk.PaletteEntry(name, data);
-                                                })],
-                                    blocks
-                                );
-                            }
-                        })
-                        .Where(subChunk => subChunk != null);
+                                            return new PreviewModel.SubChunk.PaletteEntry(name, data);
+                                        })],
+                                blocks
+                            );
+                        }
+                    })
+                    .Where(subChunk => subChunk != null);
             })
             .ToArray()!;
 

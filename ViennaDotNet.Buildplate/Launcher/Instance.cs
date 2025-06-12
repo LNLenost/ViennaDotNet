@@ -3,7 +3,6 @@ using Cyotek.Data.Nbt.Serialization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
-using System;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
@@ -729,6 +728,7 @@ public class Instance
                 .put("doWeatherCycle", "false")
                 .put("doMobSpawning", "false")
                 .put("fountain:doMobDespawn", "false")
+                .put("keepInventory", "true")
             )
             .put("WorldGenSettings", new NbtBuilder.Compound()
                 .put("seed", (long)0)    // TODO
@@ -1049,7 +1049,7 @@ public class Instance
             Log.Information("Beginning shutdown");
 
             this.sendEventBusInstanceStatusNotification("shuttingDown");
-            
+
             if (bridgeProcess != null)
             {
                 Log.Information("Waiting for bridge to shut down");
@@ -1091,7 +1091,7 @@ public class Instance
 
         return exitCode;
     }
-    
+
     public void waitForShutdown()
     {
         for (; ; )

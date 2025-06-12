@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
-using System;
 using System.Diagnostics;
 using ViennaDotNet.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Utils;

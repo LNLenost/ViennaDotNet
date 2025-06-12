@@ -656,13 +656,13 @@ public sealed class BuildplateInstanceRequestHandler
     private bool? handlePlayerDead(string instanceId, string playerId, long currentTime)
     {
         BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
-		if (instanceInfo is null)
-		{
-			return null;
-		}
+        if (instanceInfo is null)
+        {
+            return null;
+        }
 
         return instanceInfo.type is BuildplateInstancesManager.InstanceType.BUILD or BuildplateInstancesManager.InstanceType.SHARED_BUILD;
-	}
+    }
 
     private sealed record EffectInfo(
         long endTime,
