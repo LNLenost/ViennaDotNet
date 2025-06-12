@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SkiaSharp;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,11 +9,12 @@ namespace ViennaDotNet.TileRenderer.Wkb;
 
 internal interface IWKBObject
 {
-    bool ByteOrder { get; set; }
+    bool ByteOrder { get; }
 
-    uint WkbType { get; set; }
+    uint WkbType { get; }
 
-    static abstract void Load(BinaryReader reader);
+    static virtual IWKBObject Load(BinaryReader reader)
+        => throw new NotImplementedException();
 
-    void Render(Tile tile, double r, double g, double b, double strokeWidth);
+    void Render(SKCanvas canvas, Tile tile, SKColor color, float strokeWidth);
 }

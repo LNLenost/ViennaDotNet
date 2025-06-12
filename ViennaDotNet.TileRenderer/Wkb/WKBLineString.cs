@@ -7,26 +7,45 @@ using System.Threading.Tasks;
 
 namespace ViennaDotNet.TileRenderer.Wkb;
 
-internal sealed class LinearRing
+internal class WKBLineString : IWKBObject
 {
-    public LinearRing(Point[] points)
+    public WKBLineString(bool byteOrder, uint wkbType, uint srid, Point[] points)
     {
+        ByteOrder = byteOrder;
+        WkbType = wkbType;
+        Srid = srid;
         Points = points;
     }
 
+    public bool ByteOrder { get; } // 1=little-endian
+    public uint WkbType { get; }
+    public uint Srid { get; }
     public Point[] Points { get; }
 
-    public static LinearRing Load(BinaryReader reader)
+    public static IWKBObject Load(BinaryReader reader)
     {
-        int numPoints = reader.ReadInt32();
-        var points = new Point[numPoints];
+        bool byteOrder = reader.ReadByte() == 1;
+        if (byteOrder != BitConverter.IsLittleEndian)
+        {
+            throw new NotImplementedException();
+        }
 
+        uint wkbType = reader.ReadUInt32();
+
+        uint srid = 0;
+        if ((wkbType & Constants.WkbSRID) != 0)
+        {
+            srid = reader.ReadUInt32();
+        }
+
+        int numPoints = reader.ReadInt32();
+        Point[] points = new Point[numPoints];
         for (int i = 0; i < numPoints; i++)
         {
             points[i] = Point.Load(reader);
         }
 
-        return new LinearRing(points);
+        return new WKBLineString(byteOrder, wkbType, srid, points);
     }
 
     public void Render(SKCanvas canvas, Tile tile, SKColor color, float strokeWidth)
@@ -47,7 +66,7 @@ internal sealed class LinearRing
 
             if (i == 0)
             {
-                path.MoveTo((float)pixelPoint.X, (float)pixelPoint.Y); // Begin new polygon
+                path.MoveTo((float)pixelPoint.X, (float)pixelPoint.Y);
             }
             else
             {
@@ -55,7 +74,6 @@ internal sealed class LinearRing
             }
         }
 
-        path.Close(); // Close the path to ensure polygon is sealed
         canvas.DrawPath(path, paint);
     }
 }

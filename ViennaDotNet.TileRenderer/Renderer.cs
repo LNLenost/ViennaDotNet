@@ -1,7 +1,9 @@
 ﻿using Npgsql;
 using Serilog;
+using SkiaSharp;
 using System.Collections.Frozen;
 using System.Text.Json;
+using ViennaDotNet.TileRenderer.Wkb;
 
 namespace ViennaDotNet.TileRenderer;
 
@@ -54,7 +56,7 @@ public class Renderer
     private readonly List<string> _tags;
     private readonly Dictionary<string, Dictionary<string, RenderLayer>> _tagsMap;
 
-    private Renderer(List<string> tags,  Dictionary<string, Dictionary<string, RenderLayer>> tagsMap)
+    private Renderer(List<string> tags, Dictionary<string, Dictionary<string, RenderLayer>> tagsMap)
     {
         _tags = tags;
         _tagsMap = tagsMap;
@@ -72,7 +74,6 @@ public class Renderer
             foreach (JsonProperty tagField in doc.RootElement.EnumerateObject())
             {
                 string tagName = tagField.Name;
-                Console.WriteLine($"- {tagName}");
 
                 tags.Add(tagName);
                 tagsMap[tagName] = [];
@@ -86,8 +87,6 @@ public class Renderer
                     {
                         tagMapping = valueField.Value.GetString() ?? "";
                     }
-
-                    Console.WriteLine($"  - {tagValue} : {tagMapping}");
 
                     if (layerStringMapping.TryGetValue(tagMapping, out RenderLayer layer))
                     {
@@ -105,33 +104,127 @@ public class Renderer
         return new Renderer(tags, tagsMap);
     }
 
-    public async Task RenderAsync(NpgsqlDataSource dataSource, CancellationToken cancellationToken = default)
+    public async Task RenderAsync(NpgsqlDataSource dataSource, SKCanvas canvas, double latitude, double longtitute, int zoom, CancellationToken cancellationToken = default)
     {
+        var (tileX, tileY) = getTileForCords(latitude, longtitute);
+
+        Tile tile = new Tile(new Point(tileX, tileY), zoom, 128);
+
+        canvas.Clear(LayerToColor((int)RenderLayer.LAYER_NONE));
+
         const string sql = @"
             SELECT aeroway, amenity, barrier, building, highway, landuse, leisure, military, ""natural"", railway, waterway, ST_AsBinary(way)
             FROM planet_osm_polygon
-            WHERE way && ST_TileEnvelope(@tileZ, @tileX, @tileY) AND boundary IS NULL
+            WHERE way && ST_TileEnvelope(@zoom, @tileX, @tileY) AND boundary IS NULL
             UNION
             SELECT aeroway, amenity, barrier, building, highway, landuse, leisure, military, ""natural"", railway, waterway, ST_AsBinary(way)
             FROM planet_osm_line
-            WHERE way && ST_TileEnvelope(@tileZ, @tileX, @tileY)
+            WHERE way && ST_TileEnvelope(@zoom, @tileX, @tileY)
               AND boundary IS NULL
               AND route IS NULL
               AND NOT (railway IS NULL AND highway IS NULL)
               AND (railway IS NULL OR railway != 'subway');";
 
+        Log.Information("Loading map data");
         await using (var cmd = dataSource.CreateCommand(sql))
         {
-            var (x, y) = getTileForCords(50.081604, 14.410044); // prague
-
-            cmd.Parameters.AddWithValue("tileZ", 16);
-            cmd.Parameters.AddWithValue("tileY", y);
-            cmd.Parameters.AddWithValue("tileX", x);
+            cmd.Parameters.AddWithValue("zoom", zoom);
+            cmd.Parameters.AddWithValue("tileY", tileY);
+            cmd.Parameters.AddWithValue("tileX", tileX);
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
+            List<List<IWKBObject>> layers = [];
+            for (int i = 0; i <= (int)RenderLayer.LAYER_NONE; i++)
+            {
+                layers.Add([]);
+            }
 
+            int rowCount = 0;
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rowCount++;
+
+                if (reader.IsDBNull(11)) // ST_AsBinary index
+                {
+                    continue;
+                }
+
+                RenderLayer targetLayer = RenderLayer.LAYER_NONE;
+
+                foreach (string tagName in _tags)
+                {
+                    int ord = reader.GetOrdinal(tagName);
+                    if (reader.IsDBNull(ord))
+                    {
+                        continue;
+                    }
+
+                    string tagValue = reader.GetString(ord);
+
+                    if (_tagsMap.TryGetValue(tagName, out var valMap))
+                    {
+                        if (valMap.TryGetValue(tagValue, out var layer))
+                        {
+                            targetLayer = layer;
+                            break;
+                        }
+                        else if (valMap.TryGetValue("*", out var defaultLayer))
+                        {
+                            targetLayer = defaultLayer;
+                            break;
+                        }
+                    }
+                }
+
+                byte[] wkb = (byte[])reader[11];
+                if (wkb.Length < 5)
+                {
+                    continue; // invalid
+                }
+
+                // Read WKB geometry type (skip endian byte at wkb[0])
+                WkbGeometryType wkbType = (WkbGeometryType)BitConverter.ToUInt32(wkb, 1);
+
+                using var ms = new MemoryStream(wkb);
+                using var bReader = new BinaryReader(ms);
+
+                IWKBObject? obj = wkbType switch
+                {
+                    WkbGeometryType.Point => null,
+                    WkbGeometryType.MultiPoint => null,
+                    WkbGeometryType.LineString => WKBLineString.Load(bReader),
+                    WkbGeometryType.Polygon => WKBPolygon.Load(bReader),
+                    WkbGeometryType.MultiLineString => WKBMultiLineString.Load(bReader),
+                    WkbGeometryType.MultiPolygon => WKBMultiPolygon.Load(bReader),
+                    _ => throw new Exception($"Unknown WKB type: {wkbType}"),
+                };
+
+                if (obj != null)
+                {
+                    layers[(int)targetLayer].Add(obj);
+                }
+            }
+
+            Log.Information("Rendering image");
+            for (int renderLayer = 0; renderLayer < (int)RenderLayer.LAYER_NONE; renderLayer++)
+            {
+                var layer = layers[renderLayer];
+
+                for (int j = 0; j < layer.Count; j++)
+                {
+                    layer[j].Render(canvas, tile, LayerToColor(renderLayer), 2);
+                }
+            }
+
+            canvas.Flush();
         }
+    }
+
+    private static SKColor LayerToColor(int layer)
+    {
+        byte bwColor = (byte)(layerColourMapping[layer] * 255);
+        return new SKColor(bwColor, bwColor, bwColor);
     }
 
     static (int X, int Y) getTileForCords(double lat, double lon)
