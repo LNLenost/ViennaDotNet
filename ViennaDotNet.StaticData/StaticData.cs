@@ -6,6 +6,7 @@ public sealed class StaticData
     public readonly Levels levels;
     public readonly TappablesConfig tappablesConfig;
     public readonly EncountersConfig encountersConfig;
+    public readonly TileRenderer tileRenderer;
 
     public StaticData(string dir)
     {
@@ -13,5 +14,6 @@ public sealed class StaticData
         levels = new Levels(Path.Combine(dir, "levels"));
         tappablesConfig = new TappablesConfig(Path.Combine(dir, "tappables"));
         encountersConfig = new EncountersConfig(Path.Combine(dir, "encounters"));
+        tileRenderer = new TileRenderer(Path.Combine(dir, "tile_renderer"));
     }
 }

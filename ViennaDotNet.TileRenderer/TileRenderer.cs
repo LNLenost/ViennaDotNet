@@ -7,7 +7,7 @@ using ViennaDotNet.TileRenderer.Wkb;
 
 namespace ViennaDotNet.TileRenderer;
 
-public class Renderer
+public class TileRenderer
 {
     // Map layers with their JSON string versions
     private static readonly FrozenDictionary<string, RenderLayer> layerStringMapping = new Dictionary<string, RenderLayer>()
@@ -56,13 +56,13 @@ public class Renderer
     private readonly List<string> _tags;
     private readonly Dictionary<string, Dictionary<string, RenderLayer>> _tagsMap;
 
-    private Renderer(List<string> tags, Dictionary<string, Dictionary<string, RenderLayer>> tagsMap)
+    private TileRenderer(List<string> tags, Dictionary<string, Dictionary<string, RenderLayer>> tagsMap)
     {
         _tags = tags;
         _tagsMap = tagsMap;
     }
 
-    public static Renderer Create(string tagMapJson, ILogger logger)
+    public static TileRenderer Create(string tagMapJson, ILogger logger)
     {
         List<string> tags = [];
         Dictionary<string, Dictionary<string, RenderLayer>> tagsMap = [];
@@ -94,20 +94,18 @@ public class Renderer
                     }
                     else
                     {
-                        Log.Warning($"Unknown layer mapping '{tagMapping}'");
+                        logger.Warning($"Unknown layer mapping '{tagMapping}'");
                         tagsMap[tagName][tagValue] = RenderLayer.LAYER_NONE;
                     }
                 }
             }
         }
 
-        return new Renderer(tags, tagsMap);
+        return new TileRenderer(tags, tagsMap);
     }
 
-    public async Task RenderAsync(NpgsqlDataSource dataSource, SKCanvas canvas, double latitude, double longtitute, int zoom, CancellationToken cancellationToken = default)
+    public async Task RenderAsync(NpgsqlDataSource dataSource, SKCanvas canvas, int tileX, int tileY, int zoom, ILogger logger, CancellationToken cancellationToken = default)
     {
-        var (tileX, tileY) = getTileForCords(latitude, longtitute);
-
         Tile tile = new Tile(new Point(tileX, tileY), zoom, 128);
 
         canvas.Clear(LayerToColor((int)RenderLayer.LAYER_NONE));
@@ -125,7 +123,7 @@ public class Renderer
               AND NOT (railway IS NULL AND highway IS NULL)
               AND (railway IS NULL OR railway != 'subway');";
 
-        Log.Information("Loading map data");
+        logger.Information("Loading map data");
         await using (var cmd = dataSource.CreateCommand(sql))
         {
             cmd.Parameters.AddWithValue("zoom", zoom);
@@ -206,7 +204,7 @@ public class Renderer
                 }
             }
 
-            Log.Information("Rendering image");
+            logger.Information("Rendering image");
             for (int renderLayer = 0; renderLayer < (int)RenderLayer.LAYER_NONE; renderLayer++)
             {
                 var layer = layers[renderLayer];
@@ -225,30 +223,5 @@ public class Renderer
     {
         byte bwColor = (byte)(layerColourMapping[layer] * 255);
         return new SKColor(bwColor, bwColor, bwColor);
-    }
-
-    static (int X, int Y) getTileForCords(double lat, double lon)
-    {
-        //Adapted from java example. Zoom is replaced by the constant 16 because all MCE tiles are at zoom 16
-
-        int xtile = (int)Math.Floor((lon + 180) / 360 * (1 << 16));
-        int ytile = (int)Math.Floor((1 - Math.Log(Math.Tan(toRadians(lat)) + 1 / Math.Cos(toRadians(lat))) / Math.PI) / 2 * (1 << 16));
-
-        if (xtile < 0)
-            xtile = 0;
-        if (xtile >= (1 << 16))
-            xtile = ((1 << 16) - 1);
-        if (ytile < 0)
-            ytile = 0;
-        if (ytile >= (1 << 16))
-            ytile = ((1 << 16) - 1);
-
-        return (xtile, ytile);
-    }
-
-    //Helper
-    static double toRadians(double angle)
-    {
-        return (Math.PI / 180) * angle;
     }
 }

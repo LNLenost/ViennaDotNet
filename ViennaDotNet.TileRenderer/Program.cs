@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ViennaDotNet.TileRenderer;
 
-// only for testing, TODO: convert to lib type
+// TODO: leave as exe, use event bus
 
 var log = new LoggerConfiguration()
    .WriteTo.Console()
@@ -17,10 +17,10 @@ var log = new LoggerConfiguration()
 
 Log.Logger = log;
 
-string connectionString = args[0];
+/*string connectionString = args[0];
 await using var dataSource = NpgsqlDataSource.Create(connectionString);
 
-Renderer renderer = Renderer.Create(File.ReadAllText("tagMap.json"), log);
+TileRenderer renderer = TileRenderer.Create(File.ReadAllText("tagMap.json"), log);
 
 using (var bitmap = new SKBitmap(128, 128))
 using (var canvas = new SKCanvas(bitmap))
@@ -33,4 +33,4 @@ using (var canvas = new SKCanvas(bitmap))
         Log.Information("Writing png...");
         data.SaveTo(stream);
     }
-}
+}*/
