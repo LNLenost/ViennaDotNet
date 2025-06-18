@@ -1,6 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Inventory;
 
-public record StackableInventoryItem(
+public sealed record StackableInventoryItem(
     string id,
     int owned,
     int fragments,
@@ -8,9 +8,7 @@ public record StackableInventoryItem(
     StackableInventoryItem.On seen
 )
 {
-    public record On(
+    public sealed record On(
         string on
-    )
-    {
-    }
+    );
 }

@@ -2,7 +2,7 @@
 
 namespace ViennaDotNet.ApiServer.Types.Catalog;
 
-public record NFCBoost(
+public sealed record NFCBoost(
     string id,
     string name,
     string type,
@@ -10,6 +10,4 @@ public record NFCBoost(
     BoostMetadata boostMetadata,
     bool deprecated,
     string toolsVersion
-)
-{
-}
+);

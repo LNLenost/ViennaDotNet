@@ -1,12 +1,10 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.ApiServer.Types.Common;
 using static ViennaDotNet.ApiServer.Types.Buildplates.BuildplateInstance;
 
 namespace ViennaDotNet.ApiServer.Types.Buildplates;
 
-public record BuildplateInstance(
+public sealed record BuildplateInstance(
     string instanceId,
     string partitionId,
     string fqdn,
@@ -21,20 +19,20 @@ public record BuildplateInstance(
     Coordinate hostCoordinate
 )
 {
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum ApplicationStatus
     {
-        [EnumMember(Value = "Unknown")] UNKNOWN,
-        [EnumMember(Value = "Ready")] READY
+        [JsonStringEnumMemberName("Unknown")] UNKNOWN,
+        [JsonStringEnumMemberName("Ready")] READY
     }
 
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum ServerStatus
     {
-        [EnumMember(Value = "Running")] RUNNING
+        [JsonStringEnumMemberName("Running")] RUNNING
     }
 
-    public record GameplayMetadata(
+    public sealed record GameplayMetadata(
         string worldId,
         string templateId,
         string? spawningPlayerId,
@@ -51,13 +49,13 @@ public record BuildplateInstance(
         Dictionary<string, object> breakableItemToItemLootMap    // TODO: find out what this is
     )
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum GameplayMode
         {
-            [EnumMember(Value = "Buildplate")] BUILDPLATE,
-            [EnumMember(Value = "BuildplatePlay")] BUILDPLATE_PLAY,
-            [EnumMember(Value = "SharedBuildplatePlay")] SHARED_BUILDPLATE_PLAY,
-            [EnumMember(Value = "Encounter")] ENCOUNTER
+            [JsonStringEnumMemberName("Buildplate")] BUILDPLATE,
+            [JsonStringEnumMemberName("BuildplatePlay")] BUILDPLATE_PLAY,
+            [JsonStringEnumMemberName("SharedBuildplatePlay")] SHARED_BUILDPLATE_PLAY,
+            [JsonStringEnumMemberName("Encounter")] ENCOUNTER
         }
     }
 }

@@ -1,45 +1,44 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class Journal
 {
-    [JsonProperty]
-    private Dictionary<string, ItemJournalEntry> items;
+    [JsonInclude, JsonPropertyName("items")]
+    public Dictionary<string, ItemJournalEntry> _items;
 
     public Journal()
     {
-        items = [];
+        _items = [];
     }
 
     public Journal copy()
     {
         Journal journal = new Journal();
-        journal.items.AddRange(items);
+        journal._items.AddRange(_items);
         return journal;
     }
 
     public Dictionary<string, ItemJournalEntry> getItems()
-        => new(items);
+        => new(_items);
 
     public ItemJournalEntry? getItem(string uuid)
-        => items.GetValueOrDefault(uuid);
+        => _items.GetValueOrDefault(uuid);
 
     public int addCollectedItem(string uuid, long timestamp, int count)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
 
-        ItemJournalEntry? itemJournalEntry = items.GetOrDefault(uuid, null);
+        ItemJournalEntry? itemJournalEntry = _items.GetOrDefault(uuid, null);
         if (itemJournalEntry is null)
         {
-            items[uuid] = new ItemJournalEntry(timestamp, timestamp, count);
+            _items[uuid] = new ItemJournalEntry(timestamp, timestamp, count);
             return 0;
         }
         else
         {
-            items[uuid] = new ItemJournalEntry(itemJournalEntry.firstSeen, itemJournalEntry.lastSeen, itemJournalEntry.amountCollected + count);
+            _items[uuid] = new ItemJournalEntry(itemJournalEntry.firstSeen, itemJournalEntry.lastSeen, itemJournalEntry.amountCollected + count);
             return itemJournalEntry.amountCollected;
         }
     }

@@ -1,15 +1,14 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.DB.Models.Player.Workshop;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class SmeltingSlot
 {
-    [JsonProperty]
+    [JsonInclude]
     public ActiveJob? activeJob;
-    [JsonProperty]
+    [JsonInclude]
     public Burning? burning;
-    [JsonProperty]
+    [JsonInclude]
     public bool locked;
 
     public SmeltingSlot()
@@ -19,7 +18,7 @@ public sealed class SmeltingSlot
         locked = false;
     }
 
-    public record ActiveJob(
+    public sealed record ActiveJob(
         string sessionId,
         string recipeId,
         long startTime,
@@ -28,22 +27,16 @@ public sealed class SmeltingSlot
         int totalRounds,
         int collectedRounds,
         bool finishedEarly
-    )
-    {
-    }
+    );
 
-    public record Fuel(
+    public sealed record Fuel(
         InputItem item,
         int burnDuration,
         int heatPerSecond
-    )
-    {
-    }
+    );
 
-    public record Burning(
+    public sealed record Burning(
         Fuel fuel,
         int remainingHeat
-    )
-    {
-    }
+    );
 }

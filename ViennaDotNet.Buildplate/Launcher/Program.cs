@@ -85,8 +85,7 @@ internal static class Program
 
         string javaCmd = JavaLocator.locateJava();
         Starter starter = new Starter(eventBusClient, options.EventBusConnectionString, options.PublicAddress, javaCmd, options.BridgeJar, options.ServerTemplateDir, options.FabricJarName, options.ConnectorPluginJar);
-        PreviewGenerator previewGenerator = new PreviewGenerator(javaCmd, options.BridgeJar);
-        InstanceManager instanceManager = new InstanceManager(eventBusClient, starter, previewGenerator);
+        InstanceManager instanceManager = new InstanceManager(eventBusClient, starter);
 
         AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
         {
@@ -97,7 +96,5 @@ internal static class Program
         {
             Thread.Sleep(100);
         }
-
-        return 0;
     }
 }

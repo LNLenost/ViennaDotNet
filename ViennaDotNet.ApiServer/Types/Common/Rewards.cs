@@ -1,7 +1,7 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Common;
 
 // TODO: determine format
-public record Rewards(
+public sealed record Rewards(
     int? rubies,
     int? experiencePoints,
     int? level,
@@ -12,20 +12,14 @@ public record Rewards(
     Rewards.UtilityBlock[] utilityBlocks
 )
 {
-    public record Item(
+    public sealed record Item(
         string id,
         int amount
-    )
-    {
-    }
+    );
 
-    public record Challenge(
+    public sealed record Challenge(
         string id
-    )
-    {
-    }
+    );
 
-    public record UtilityBlock()
-    {
-    }
+    public sealed record UtilityBlock();
 }

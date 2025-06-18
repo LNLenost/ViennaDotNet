@@ -1,16 +1,14 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Common;
 
-[JsonConverter(typeof(StringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum Rarity
 {
-    [EnumMember(Value = "Common")] COMMON,
-    [EnumMember(Value = "Uncommon")] UNCOMMON,
-    [EnumMember(Value = "Rare")] RARE,
-    [EnumMember(Value = "Epic")] EPIC,
-    [EnumMember(Value = "Legendary")] LEGENDARY,
-    [EnumMember(Value = "oobe")] OOBE
+    [JsonStringEnumMemberName("Common")] COMMON,
+    [JsonStringEnumMemberName("Uncommon")] UNCOMMON,
+    [JsonStringEnumMemberName("Rare")] RARE,
+    [JsonStringEnumMemberName("Epic")] EPIC,
+    [JsonStringEnumMemberName("Legendary")] LEGENDARY,
+    [JsonStringEnumMemberName("oobe")] OOBE
 }

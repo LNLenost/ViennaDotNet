@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
 
-public record OutputItem(
+public sealed record OutputItem(
     string itemId,
     int quantity
-)
-{
-}
+);

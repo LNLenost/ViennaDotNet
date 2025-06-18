@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -24,7 +24,7 @@ public sealed class ActiveTiles
                 ActiveTileNotification activeTileNotification;
                 try
                 {
-                    activeTileNotification = JsonConvert.DeserializeObject<ActiveTileNotification>(request.data)!;
+                    activeTileNotification = Json.Deserialize<ActiveTileNotification>(request.data)!;
                 }
                 catch (Exception ex)
                 {

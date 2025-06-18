@@ -1,17 +1,15 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Buildplates;
 
-public record SharedBuildplate(
+public sealed record SharedBuildplate(
     string playerId,
     string sharedOn,
     SharedBuildplate.BuildplateData buildplateData,
     Inventory.Inventory inventory
 )
 {
-    public record BuildplateData(
+    public sealed record BuildplateData(
         Dimension dimension,
         Offset offset,
         int blocksPerMeter,
@@ -21,10 +19,10 @@ public record SharedBuildplate(
         int order
     )
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Type
         {
-            [EnumMember(Value = "Survival")] SURVIVAL,
+            [JsonStringEnumMemberName("Survival")] SURVIVAL,
         }
     }
 }

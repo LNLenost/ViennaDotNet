@@ -1,10 +1,10 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -55,7 +55,7 @@ public class JournalController : ControllerBase
         var activityLogList = _activityLogList.Reverse().ToArray();
         Types.Journal.JournalRecord.ActivityLogEntry[] activityLog = activityLogList;
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Journal.JournalRecord(inventoryJournal, activityLog)));
+        string resp = Json.Serialize(new EarthApiResponse(new Types.Journal.JournalRecord(inventoryJournal, activityLog)));
         return Content(resp, "application/json");
     }
 

@@ -36,7 +36,7 @@ public static class Program
         [Option("db", Default = "./earth.db", Required = false, HelpText = "Database connection string")]
         public string DatabaseConnectionString { get; set; }
 
-        [Option("dir", Default = "./data", Required = false, HelpText = "Static data path")]
+        [Option("dir", Default = "./staticdata", Required = false, HelpText = "Static data path")]
         public string StaticDataPath { get; set; }
 
         [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]

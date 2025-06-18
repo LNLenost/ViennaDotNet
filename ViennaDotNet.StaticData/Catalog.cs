@@ -476,11 +476,11 @@ public sealed class Catalog
         }
 
         public sealed record SmeltingRecipe(
-                string id,
-                int heatRequired,
-                string input,
-                string output,
-                string returnItemId
+            string id,
+            int heatRequired,
+            string input,
+            string output,
+            string returnItemId
         );
     }
 
@@ -499,6 +499,11 @@ public sealed class Catalog
             }
 
             // TODO
+        }
+
+        public sealed record BoostInfo
+        {
+
         }
     }
 }

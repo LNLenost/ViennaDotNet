@@ -6,7 +6,7 @@ using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.EventBus.Client;
 
-public class EventBusClient
+public sealed class EventBusClient
 {
     public static EventBusClient create(string connectionString)
     {
@@ -51,11 +51,11 @@ public class EventBusClient
         }
     }
 
-    private Socket socket;
+    private readonly Socket socket;
     private readonly BlockingCollection<string> outgoingMessageQueue = [];
-    private CancellationTokenSource _tokenSource = new();
-    private Task outgoingThread;
-    private Task incomingThread;
+    private readonly CancellationTokenSource _tokenSource = new();
+    private readonly Task outgoingThread;
+    private readonly Task incomingThread;
     private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
     private bool closed = false;
@@ -368,9 +368,7 @@ public class EventBusClient
     }
 
     private int getUnusedChannelId()
-    {
-        return nextChannelId++;
-    }
+        => nextChannelId++;
 
     private async Task<bool> dispatchReceivedMessage(string message)
     {

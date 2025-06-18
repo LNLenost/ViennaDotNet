@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Buildplates;
 
-public record Dimension(
+public sealed record Dimension(
     int x,
     int z
-)
-{
-}
+);

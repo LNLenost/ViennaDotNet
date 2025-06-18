@@ -89,19 +89,13 @@ public class ConsoleProcess
     }
 
     public void WriteLine(string data)
-    {
-        Write(data + Environment.NewLine);
-    }
+        => Write(data + Environment.NewLine);
 
     protected virtual void OnProcessExited()
-    {
-        ProcessExited?.Invoke(this, EventArgs.Empty);
-    }
+        => ProcessExited?.Invoke(this, EventArgs.Empty);
 
     private void ProcessOnExited(object? sender, EventArgs eventArgs)
-    {
-        OnProcessExited();
-    }
+        => OnProcessExited();
 
     public void StopAndWait()
     {
@@ -141,15 +135,15 @@ public class ConsoleProcess
         Process.WaitForExit();
     }
 
-    internal const int CTRL_C_EVENT = 0;
+    private const int CTRL_C_EVENT = 0;
     [DllImport("kernel32.dll")]
-    internal static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
+    private static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
     [DllImport("kernel32.dll", SetLastError = true)]
-    internal static extern bool AttachConsole(uint dwProcessId);
+    private static extern bool AttachConsole(uint dwProcessId);
     [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-    internal static extern bool FreeConsole();
+    private static extern bool FreeConsole();
     [DllImport("kernel32.dll")]
-    static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate? HandlerRoutine, bool Add);
+    private static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate? HandlerRoutine, bool Add);
     // Delegate type to be used as the Handler Routine for SCCH
     private delegate bool ConsoleCtrlDelegate(uint CtrlType);
 }

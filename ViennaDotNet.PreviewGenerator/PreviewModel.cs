@@ -1,9 +1,11 @@
-﻿namespace ViennaDotNet.PreviewGenerator;
+﻿using System.Text.Json.Serialization;
+
+namespace ViennaDotNet.PreviewGenerator;
 
 internal sealed record PreviewModel(
-     int format_version, // always 1
+     [property: JsonPropertyName("format_version")] int format_version, // always 1
      bool isNight,
-     PreviewModel.SubChunk[] sub_chunks,
+     [property: JsonPropertyName("sub_chunks")] PreviewModel.SubChunk[] sub_chunks,
      PreviewModel.BlockEntity[] blockEntities,
      PreviewModel.Entity[] entities
 )

@@ -5,11 +5,10 @@ using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.EventBus.Server;
 
-public class Server
+public partial class Server
 {
     private readonly ReaderWriterLockSlim subscribersLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
     private readonly Dictionary<string, HashSet<Subscriber>> subscribers = [];
-
 
     private readonly ReaderWriterLockSlim requestHandlersLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
     private readonly Dictionary<string, HashSet<RequestHandler>> requestHandlers = [];
@@ -110,13 +109,12 @@ public class Server
         }
     }
 
-    private IEnumerable<Subscriber> getSubscribers(string queueName)
+    private HashSet<Subscriber> getSubscribers(string queueName)
     {
         HashSet<Subscriber>? subscribers = this.subscribers.GetOrDefault(queueName, null);
-        if (subscribers != null)
-            return subscribers;
-        else
-            return [];
+        return subscribers is not null 
+            ? subscribers 
+            : [];
     }
 
     public Publisher addPublisher()
@@ -169,7 +167,7 @@ public class Server
         }
     }
 
-    public Server.RequestHandler? addRequestHandler(string queueName, Func<RequestHandler.Request, TaskCompletionSource<string>> requestHandler, Action<RequestHandler.ErrorMessage> errorConsumer)
+    public Server.RequestHandler? addRequestHandler(string queueName, Func<RequestHandler.Request, TaskCompletionSource<string?>> requestHandler, Action<RequestHandler.ErrorMessage> errorConsumer)
     {
         if (!validateQueueName(queueName))
             return null;
@@ -191,11 +189,11 @@ public class Server
         private readonly Server server;
 
         private readonly string queueName;
-        private readonly Func<Request, TaskCompletionSource<string>> requestHandler;
+        private readonly Func<Request, TaskCompletionSource<string?>> requestHandler;
         private readonly Action<ErrorMessage> errorConsumer;
         private bool ended = false;
 
-        internal RequestHandler(Server server, string queueName, Func<Request, TaskCompletionSource<string>> requestHandler, Action<ErrorMessage> errorConsumer)
+        internal RequestHandler(Server server, string queueName, Func<Request, TaskCompletionSource<string?>> requestHandler, Action<ErrorMessage> errorConsumer)
         {
             this.server = server;
             this.queueName = queueName;
@@ -220,12 +218,16 @@ public class Server
         }
 
         [MethodImpl(MethodImplOptions.Synchronized)]
-        internal TaskCompletionSource<string>? request(Request request)
+        internal TaskCompletionSource<string?> request(Request request)
         {
             if (!ended)
                 return requestHandler.Invoke(request);
             else
-                return null;
+            {
+                var source = new TaskCompletionSource<string?>();
+                source.SetResult(null);
+                return source;
+            }
         }
 
         [MethodImpl(MethodImplOptions.Synchronized)]
@@ -261,13 +263,12 @@ public class Server
         }
     }
 
-    private IEnumerable<RequestHandler> getHandlers(string queueName)
+    private HashSet<RequestHandler> getHandlers(string queueName)
     {
         HashSet<RequestHandler>? requestHandlers = this.requestHandlers.GetOrDefault(queueName, null);
-        if (requestHandlers != null)
-            return requestHandlers;
-        else
-            return [];
+        return requestHandlers is not null 
+            ? requestHandlers
+            : [];
     }
 
     public RequestSender addRequestSender()
@@ -318,15 +319,12 @@ public class Server
             {
                 foreach (RequestHandler requestHandler in requestHandlers)
                 {
-                    TaskCompletionSource<string>? completableFuture = requestHandler.request(request);
-                    if (completableFuture != null)
+                    TaskCompletionSource<string?> completableFuture = requestHandler.request(request);
+                    string? response = completableFuture.Task.Result;
+                    if (response is not null)
                     {
-                        string response = completableFuture.Task.Result;
-                        if (response != null)
-                        {
-                            responseCompletableFuture.SetResult(response);
-                            break;
-                        }
+                        responseCompletableFuture.SetResult(response);
+                        break;
                     }
                 }
 
@@ -338,20 +336,10 @@ public class Server
     }
 
     private static bool validateQueueName(string queueName)
-    {
-        if (string.IsNullOrWhiteSpace(queueName) || queueName.Length == 0 || Regex.IsMatch(queueName, "[^A-Za-z0-9_\\-]") || Regex.IsMatch(queueName, "^[^A-Za-z0-9]"))
-            return false;
-
-        return true;
-    }
+        => !string.IsNullOrWhiteSpace(queueName) && queueName.Length != 0 && !GetValitationRegex1().IsMatch(queueName) && !GetValitationRegex2().IsMatch(queueName);
 
     private static bool validateType(string type)
-    {
-        if (string.IsNullOrWhiteSpace(type) || type.Length == 0 || Regex.IsMatch(type, "[^A-Za-z0-9_\\-]") || Regex.IsMatch(type, "^[^A-Za-z0-9]"))
-            return false;
-
-        return true;
-    }
+        => !string.IsNullOrWhiteSpace(type) && type.Length != 0 && !GetValitationRegex1().IsMatch(type) && !GetValitationRegex2().IsMatch(type);
 
     private static bool validateData(string str)
     {
@@ -361,4 +349,10 @@ public class Server
 
         return true;
     }
+
+    [GeneratedRegex("[^A-Za-z0-9_\\-]")]
+    private static partial Regex GetValitationRegex1();
+
+    [GeneratedRegex("^[^A-Za-z0-9]")]
+    private static partial Regex GetValitationRegex2();
 }

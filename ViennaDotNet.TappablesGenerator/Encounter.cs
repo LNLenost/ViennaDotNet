@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.TappablesGenerator;
 
@@ -14,7 +13,7 @@ public sealed record Encounter(
     string encounterBuildplateId
 )
 {
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum Rarity
     {
         COMMON,

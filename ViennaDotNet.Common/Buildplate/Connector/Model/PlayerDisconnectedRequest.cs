@@ -2,9 +2,7 @@
 
 namespace ViennaDotNet.Buildplate.Connector.Model;
 
-public record PlayerDisconnectedRequest(
+public sealed record PlayerDisconnectedRequest(
      string playerId,
      InventoryResponse? backpackContents
-)
-{
-}
+);

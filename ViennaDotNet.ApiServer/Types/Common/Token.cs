@@ -1,33 +1,32 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿
+using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Common;
 
-public record Token(
+public sealed record Token(
     Token.Type clientType,
     Dictionary<string, string> clientProperties,
     Rewards rewards,
     Token.Lifetime lifetime
 )
 {
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum Type
     {
-        [EnumMember(Value = "adv_zyki")]
+        [JsonStringEnumMemberName("adv_zyki")]
         LEVEL_UP,
-        [EnumMember(Value = "redeemtappable")]
+        [JsonStringEnumMemberName("redeemtappable")]
         TAPPABLE,
-        [EnumMember(Value = "item.unlocked")]
+        [JsonStringEnumMemberName("item.unlocked")]
         JOURNAL_ITEM_UNLOCKED
     }
 
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum Lifetime
     {
-        [EnumMember(Value = "Persistent")]
+        [JsonStringEnumMemberName("Persistent")]
         PERSISTENT,
-        [EnumMember(Value = "Transient")]
+        [JsonStringEnumMemberName("Transient")]
         TRANSIENT
     }
 }

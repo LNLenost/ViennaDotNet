@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-using System.Collections;
+﻿using System.Collections;
+using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.PreviewGenerator.NBT;
 
@@ -7,8 +7,10 @@ public class NbtList : IList
 {
     public static readonly NbtList EMPTY = new NbtList(NbtType.END);
 
-    private readonly NbtType type;
-    private readonly Array array;
+    [JsonInclude, JsonPropertyName("type")]
+    public readonly NbtType _type;
+    [JsonInclude, JsonPropertyName("array")]
+    public readonly Array _array;
     [JsonIgnore]
     private bool hashCodeGenerated;
     [JsonIgnore]
@@ -18,7 +20,7 @@ public class NbtList : IList
 
     public bool IsReadOnly => true;
 
-    public int Count => array.Length;
+    public int Count => _array.Length;
 
     public bool IsSynchronized => false;
 
@@ -29,34 +31,34 @@ public class NbtList : IList
     public NbtList(NbtType type, ICollection collection)
     {
         ArgumentNullException.ThrowIfNull(type, "tagClass");
-        this.type = type;
-        array = Array.CreateInstance(type.getTagClass(), collection.Count);
-        collection.CopyTo(array, 0);
+        this._type = type;
+        _array = Array.CreateInstance(type.getTagClass(), collection.Count);
+        collection.CopyTo(_array, 0);
     }
 
     public NbtList(NbtType tagClass, params object[] array)
     {
-        ArgumentNullException.ThrowIfNull(type, "tagClass");
-        type = tagClass;
-        this.array = (Array)array.Clone();
+        ArgumentNullException.ThrowIfNull(_type, "tagClass");
+        _type = tagClass;
+        this._array = (Array)array.Clone();
     }
 
     public NbtType getType()
     {
-        return type;
+        return _type;
     }
 
     public object get(int index)
     {
-        if (index < 0 || index >= array.Length)
-            throw new IndexOutOfRangeException("Expected 0-" + (array.Length - 1) + ". Got " + index);
+        if (index < 0 || index >= _array.Length)
+            throw new IndexOutOfRangeException("Expected 0-" + (_array.Length - 1) + ". Got " + index);
 
-        return NbtUtils.copy(array.GetValue(index)!);
+        return NbtUtils.copy(_array.GetValue(index)!);
     }
 
     public int size()
     {
-        return array.Length;
+        return _array.Length;
     }
 
     public int Add(object? value)
@@ -71,12 +73,12 @@ public class NbtList : IList
 
     public bool Contains(object? value)
     {
-        return Array.IndexOf(array, value) >= 0;
+        return Array.IndexOf(_array, value) >= 0;
     }
 
     public int IndexOf(object? value)
     {
-        return Array.IndexOf(array, value);
+        return Array.IndexOf(_array, value);
     }
 
     public void Insert(int index, object? value)
@@ -96,11 +98,11 @@ public class NbtList : IList
 
     public void CopyTo(Array array, int index)
     {
-        this.array.CopyTo(array, index);
+        this._array.CopyTo(array, index);
     }
 
     public IEnumerator GetEnumerator()
     {
-        return array.GetEnumerator();
+        return _array.GetEnumerator();
     }
 }

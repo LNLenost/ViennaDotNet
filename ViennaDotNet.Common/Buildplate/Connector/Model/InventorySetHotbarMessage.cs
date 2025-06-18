@@ -1,15 +1,13 @@
 ﻿namespace ViennaDotNet.Buildplate.Connector.Model;
 
-public record InventorySetHotbarMessage(
+public sealed record InventorySetHotbarMessage(
     string playerId,
     InventorySetHotbarMessage.Item[] items
 )
 {
-    public record Item(
+    public sealed record Item(
         string itemId,
         int count,
         string? instanceId
-    )
-    {
-    }
+    );
 }

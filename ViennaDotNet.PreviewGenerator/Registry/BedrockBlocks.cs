@@ -1,5 +1,7 @@
-﻿using Newtonsoft.Json.Linq;
-using Serilog;
+﻿using Serilog;
+using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.PreviewGenerator.NBT;
 using ViennaDotNet.PreviewGenerator.Utils;
@@ -18,21 +20,24 @@ public static class BedrockBlocks
     {
         DataFile.Load("./registry/blocks_bedrock.json", _root =>
         {
-            JArray root = (JArray)_root;
+            JsonArray root = (JsonArray)_root;
             foreach (var _element in root)
             {
-                JObject element = (JObject)_element;
-                int id = element["id"]!.ToObject<int>();
-                string name = element["name"]!.ToObject<string>()!;
+                JsonObject? element = _element as JsonObject;
+                Debug.Assert(element is not null);
+
+                int id = element["id"]!.GetValue<int>();
+                string name = element["name"]!.GetValue<string>()!;
                 SortedDictionary<string, object> state = [];
-                JObject stateObject = (JObject)element["state"]!;
+                JsonObject stateObject = (JsonObject)element["state"]!;
                 foreach (var entry in stateObject)
                 {
-                    JToken stateElement = entry.Value!;
-                    if (stateElement.Type == JTokenType.String)
-                        state[entry.Key] = stateElement.ToObject<string>()!;
+                    Debug.Assert(entry.Value is JsonValue);
+                    JsonValue stateElement = (JsonValue)entry.Value;
+                    if (stateElement.GetValueKind() == JsonValueKind.String)
+                        state[entry.Key] = stateElement.GetValue<string>()!;
                     else
-                        state[entry.Key] = stateElement.ToObject<int>();
+                        state[entry.Key] = stateElement.GetValue<int>();
                 }
 
                 BlockNameAndState blockNameAndState = new BlockNameAndState(name, state);

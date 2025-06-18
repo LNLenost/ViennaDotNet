@@ -9,7 +9,7 @@ public class NbtMapBuilder : IDictionary<string, object>
     public static NbtMapBuilder from(NbtMap map)
     {
         NbtMapBuilder builder = [];
-        builder.map.AddRange(map.map);
+        builder.map.AddRange(map._map);
         return builder;
     }
 

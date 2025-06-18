@@ -1,14 +1,9 @@
-﻿using Newtonsoft.Json;
-
-namespace ViennaDotNet.Common.Utils;
+﻿namespace ViennaDotNet.Common.Utils;
 
 public static class Extensions
 {
-    public static async Task<T?> AsJsonAsync<T>(this Stream stream, CancellationToken cancellationToken)
-    {
-        using (StreamReader reader = new StreamReader(stream))
-            return JsonConvert.DeserializeObject<T>(await reader.ReadToEndAsync(cancellationToken));
-    }
+    public static ValueTask<T?> AsJsonAsync<T>(this Stream stream, CancellationToken cancellationToken)
+        => Json.DeserializeAsync<T>(stream, cancellationToken);
 
     public static async Task<string> ReadAsString(this Stream stream)
     {

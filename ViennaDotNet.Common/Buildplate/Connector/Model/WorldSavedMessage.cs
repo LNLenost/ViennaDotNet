@@ -1,7 +1,5 @@
 ﻿namespace ViennaDotNet.Buildplate.Connector.Model;
 
-public record WorldSavedMessage(
+public sealed record WorldSavedMessage(
     string dataBase64
-)
-{
-}
+);

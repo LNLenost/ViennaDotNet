@@ -1,12 +1,12 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Inventory;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Common;
@@ -105,7 +105,7 @@ public class InventoryController : ControllerBase
             })]
         );
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(inventory));
+        string resp = Json.Serialize(new EarthApiResponse(inventory));
         return Content(resp, "application/json");
     }
 
@@ -162,7 +162,7 @@ public class InventoryController : ControllerBase
             item.instanceId != null ? ItemWear.wearToHealth(item.uuid, inventoryModel.getItemInstance(item.uuid, item.instanceId)!.wear, catalog.itemsCatalog) : 0.0f
         ) : null)];
 
-        string resp = JsonConvert.SerializeObject(hotbarItems);
+        string resp = Json.Serialize(hotbarItems);
         return Content(resp, "application/json");
     }
 
@@ -251,7 +251,7 @@ public class InventoryController : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(null, new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(null, new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException exception)

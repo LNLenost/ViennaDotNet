@@ -1,6 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
 
-public record BoostState(
+public sealed record BoostState(
 // TODO
 )
 {

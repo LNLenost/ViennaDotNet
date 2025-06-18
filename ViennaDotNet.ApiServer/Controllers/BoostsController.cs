@@ -1,12 +1,12 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using Serilog;
 using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -52,18 +52,13 @@ public class BoostsController : ControllerBase
                     Boosts boosts = (Boosts)results1.Get("boosts").Value;
                     Profile profile = (Profile)results1.Get("profile").Value;
 
-                    if (pruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, catalog.itemsCatalog))
-                    {
-                        return new EarthDB.Query(true)
+                    return pruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, catalog.itemsCatalog)
+                        ? new EarthDB.Query(true)
                             .Update("boosts", playerId, boosts)
                             .Update("profile", playerId, profile)
+                            .Extra("boosts", boosts)
+                        : new EarthDB.Query(false)
                             .Extra("boosts", boosts);
-                    }
-                    else
-                    {
-                        return new EarthDB.Query(false)
-                            .Extra("boosts", boosts);
-                    }
                 })
                 .ExecuteAsync(earthDB, cancellation);
         }
@@ -76,18 +71,13 @@ public class BoostsController : ControllerBase
 
         Types.Boost.Boosts.Potion?[] potions = [.. boosts.activeBoosts.Select(activeBoost =>
         {
-            if (activeBoost is null)
-            {
-                return null;
-            }
-            else
-            {
-                return new Types.Boost.Boosts.Potion(true, activeBoost.itemId, activeBoost.instanceId, TimeFormatter.FormatTime(activeBoost.startTime + activeBoost.duration));
-            }
+            return activeBoost is null
+                ? null
+                : new Types.Boost.Boosts.Potion(true, activeBoost.itemId, activeBoost.instanceId, TimeFormatter.FormatTime(activeBoost.startTime + activeBoost.duration));
         })];
 
         Dictionary<string, ActiveBoostInfo> activeBoostsWithInfo = [];
-        foreach (Boosts.ActiveBoost activeBoost in boosts.activeBoosts)
+        foreach (Boosts.ActiveBoost? activeBoost in boosts.activeBoosts)
         {
             if (activeBoost is null)
             {
@@ -173,7 +163,7 @@ public class BoostsController : ControllerBase
             activeBoostsWithInfo.Count != 0 ? TimeFormatter.FormatTime(activeBoostsWithInfo.Values.Select(activeBoostInfo => activeBoostInfo.activeBoost.startTime + activeBoostInfo.activeBoost.duration).Min()) : null
         );
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(boostsResponse, new EarthApiResponse.Updates(results)));
+        string resp = Json.Serialize(new EarthApiResponse(boostsResponse, new EarthApiResponse.UpdatesResponse(results)));
         return Content(resp, "application/json");
     }
 
@@ -279,7 +269,7 @@ public class BoostsController : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(null, new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(null, new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException exception)
@@ -358,7 +348,7 @@ public class BoostsController : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(null, new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(null, new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException exception)

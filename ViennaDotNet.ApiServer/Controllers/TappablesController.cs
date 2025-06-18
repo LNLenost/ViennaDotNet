@@ -1,12 +1,12 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Types.Tappables;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -84,7 +84,7 @@ public class TappablesController : ControllerBase
 
             ActiveLocation[] activeLocations = [.. activeLocationTappables, .. activeLocationEncounters];
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>()
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>()
             {
                 { "killSwitchedTileIds", new List<object>() },
                 { "activeLocations", activeLocations }
@@ -186,7 +186,7 @@ public class TappablesController : ControllerBase
 
             if ((bool)results.getExtra("success"))
             {
-                string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object?>()
+                string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object?>()
                 {
                     { "token", new Token(
                         Token.Type.TAPPABLE,
@@ -195,7 +195,7 @@ public class TappablesController : ControllerBase
                         Token.Lifetime.PERSISTENT
                     ) },
                     { "updates", null }
-                }, new EarthApiResponse.Updates(results)));
+                }, new EarthApiResponse.UpdatesResponse(results)));
                 return Content(resp, "application/json");
             }
             else
@@ -233,7 +233,7 @@ public class TappablesController : ControllerBase
             encounterStates[encounterId] = new EncounterState(EncounterState.ActiveEncounterState.PRISTINE);
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(encounterStates));
+        string resp = Json.Serialize(new EarthApiResponse(encounterStates));
         return Content(resp, "application/json");
     }
 

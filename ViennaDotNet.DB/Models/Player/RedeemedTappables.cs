@@ -1,13 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class RedeemedTappables
 {
-    [JsonProperty]
-    private Dictionary<string, long> tappables = [];
+    [JsonInclude, JsonPropertyName("tappables")]
+    public Dictionary<string, long> _tappables = [];
 
     public RedeemedTappables()
     {
@@ -15,17 +14,11 @@ public sealed class RedeemedTappables
     }
 
     public bool isRedeemed(string id)
-    {
-        return tappables.ContainsKey(id);
-    }
+        => _tappables.ContainsKey(id);
 
     public void add(string id, long expiresAt)
-    {
-        tappables[id] = expiresAt;
-    }
+        => _tappables[id] = expiresAt;
 
     public void prune(long currentTime)
-    {
-        tappables.RemoveIf(entry => entry.Value < currentTime);
-    }
+        => _tappables.RemoveIf(entry => entry.Value < currentTime);
 }

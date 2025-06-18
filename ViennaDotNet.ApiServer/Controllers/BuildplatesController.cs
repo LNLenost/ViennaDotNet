@@ -1,17 +1,17 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using Serilog;
 using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Buildplates;
 using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Types.Inventory;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Global;
@@ -81,11 +81,11 @@ public class BuildplatesController : ControllerBase
                 0,    // TODO
                 ""
             );
-        }).Where(ownedBuildplate => ownedBuildplate != null)
+        }).Where(ownedBuildplate => ownedBuildplate is not null)
         .Select(task => task.Result)];
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(ownedBuildplates));
+        string resp = Json.Serialize(new EarthApiResponse(ownedBuildplates));
         return Content(resp, "application/json");
     }
 
@@ -95,12 +95,9 @@ public class BuildplatesController : ControllerBase
         // TODO: coordinates etc.
 
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(playerId))
-        {
-            return Task.FromResult((IActionResult)BadRequest());
-        }
-
-        return getNewBuildplateInstanceResponse(playerId, buildplateId, BuildplateInstancesManager.InstanceType.BUILD, cancellationToken);
+        return string.IsNullOrEmpty(playerId)
+            ? Task.FromResult<IActionResult>(BadRequest())
+            : getNewBuildplateInstanceResponse(playerId, buildplateId, BuildplateInstancesManager.InstanceType.BUILD, cancellationToken);
     }
 
     [HttpPost("multiplayer/buildplate/{buildplateId}/play/instances")]
@@ -109,12 +106,9 @@ public class BuildplatesController : ControllerBase
         // TODO: coordinates etc.
 
         string? playerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(playerId))
-        {
-            return Task.FromResult((IActionResult)BadRequest());
-        }
-
-        return getNewBuildplateInstanceResponse(playerId, buildplateId, BuildplateInstancesManager.InstanceType.PLAY, cancellationToken);
+        return string.IsNullOrEmpty(playerId)
+            ? Task.FromResult((IActionResult)BadRequest())
+            : getNewBuildplateInstanceResponse(playerId, buildplateId, BuildplateInstancesManager.InstanceType.PLAY, cancellationToken);
     }
 
     [HttpPost("buildplates/{buildplateId}/share")]
@@ -220,7 +214,7 @@ public class BuildplatesController : ControllerBase
             throw new ServerErrorException(exception);
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse($"minecraftearth://sharedbuildplate?id={sharedBuildplateId}"));
+        string resp = Json.Serialize(new EarthApiResponse($"minecraftearth://sharedbuildplate?id={sharedBuildplateId}"));
         return Content(resp, "application/json");
     }
 
@@ -266,7 +260,7 @@ public class BuildplatesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(new SharedBuildplate(
+        string resp = Json.Serialize(new EarthApiResponse(new SharedBuildplate(
             sharedBuildplate.playerId,    // TODO: supposed to return username here, not player ID
             TimeFormatter.FormatTime(sharedBuildplate.created),
             new SharedBuildplate.BuildplateData(
@@ -343,12 +337,9 @@ public class BuildplatesController : ControllerBase
 
         var encounterInstanceRequest = await Request.Body.AsJsonAsync<EncounterInstanceRequest>(cancellationToken);
 
-        if (encounterInstanceRequest is null)
-        {
-            return BadRequest();
-        }
-
-        return await getNewEncounterBuildplateInstanceResponse(encounterId, encounterInstanceRequest.tileId, tappablesManager, cancellationToken);
+        return encounterInstanceRequest is null
+            ? BadRequest()
+            : await getNewEncounterBuildplateInstanceResponse(encounterId, encounterInstanceRequest.tileId, tappablesManager, cancellationToken);
     }
 
     // TODO: should we restrict this to matching player ID?
@@ -412,7 +403,7 @@ public class BuildplatesController : ControllerBase
             return NotFound();
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
+        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
         return Content(resp, "application/json");
     }
 
@@ -457,7 +448,7 @@ public class BuildplatesController : ControllerBase
             return NotFound();
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
+        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
         return Content(resp, "application/json");
     }
 
@@ -499,7 +490,7 @@ public class BuildplatesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
+        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
         return Content(resp, "application/json");
     }
 
@@ -530,11 +521,11 @@ public class BuildplatesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(buildplateInstance));
+        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
         return Content(resp, "application/json");
     }
 
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     private enum Source
     {
         PLAYER,
@@ -561,7 +552,9 @@ public class BuildplatesController : ControllerBase
         {
             case Source.PLAYER:
                 {
-                    Buildplates.Buildplate buildplate;
+                    Debug.Assert(instanceInfo.playerId is not null);
+
+                    Buildplates.Buildplate? buildplate;
                     try
                     {
                         EarthDB.Results results = await new EarthDB.Query(false)
@@ -613,7 +606,7 @@ public class BuildplatesController : ControllerBase
                 break;
             case Source.ENCOUNTER:
                 {
-                    EncounterBuildplates.EncounterBuildplate encounterBuildplate;
+                    EncounterBuildplates.EncounterBuildplate? encounterBuildplate;
 
                     try
                     {
@@ -651,7 +644,7 @@ public class BuildplatesController : ControllerBase
             instanceInfo.ready,
             instanceInfo.ready ? BuildplateInstance.ApplicationStatus.READY : BuildplateInstance.ApplicationStatus.UNKNOWN,
             instanceInfo.ready ? BuildplateInstance.ServerStatus.RUNNING : BuildplateInstance.ServerStatus.RUNNING,
-            JsonConvert.SerializeObject(new Dictionary<string, object>()
+            Json.Serialize(new Dictionary<string, object>()
             {
                 { "buildplateid", instanceInfo.buildplateId }
             }),

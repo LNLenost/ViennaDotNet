@@ -2,7 +2,7 @@
 
 namespace ViennaDotNet.ApiServer.Types.Profile;
 
-public record Profile(
+public sealed record Profile(
     Dictionary<int, Profile.Level> levelDistribution,
     int totalExperience,
     int level,
@@ -12,10 +12,8 @@ public record Profile(
     float healthPercentage
 )
 {
-    public record Level(
+    public sealed record Level(
         int experienceRequired,
         Rewards rewards
-    )
-    {
-    }
+    );
 }

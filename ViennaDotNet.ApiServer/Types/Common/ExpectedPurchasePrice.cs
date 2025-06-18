@@ -1,7 +1,5 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Common;
 
-public record ExpectedPurchasePrice(
+public sealed record ExpectedPurchasePrice(
     int expectedPurchasePrice
-)
-{
-}
+);

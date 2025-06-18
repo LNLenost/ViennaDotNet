@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.Buildplate.Connector.Model;
 
-public record PlayerConnectedRequest(
+public sealed record PlayerConnectedRequest(
     string uuid,
     string joinCode
-)
-{
-}
+);

@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.ApiServer.Types.Common;
 
 namespace ViennaDotNet.ApiServer.Types.Tappables;
@@ -18,12 +16,12 @@ public record ActiveLocation(
     ActiveLocation.EncounterMetadata? encounterMetadata
 )
 {
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum Type
     {
-        [EnumMember(Value = "Tappable")] TAPPABLE,
-        [EnumMember(Value = "Encounter")] ENCOUNTER,
-        [EnumMember(Value = "PlayerAdventure")] PLAYER_ADVENTURE,
+        [JsonStringEnumMemberName("Tappable")] TAPPABLE,
+        [JsonStringEnumMemberName("Encounter")] ENCOUNTER,
+        [JsonStringEnumMemberName("PlayerAdventure")] PLAYER_ADVENTURE,
     }
 
     public sealed record Metadata(
@@ -45,28 +43,28 @@ public record ActiveLocation(
     )
     {
         // TODO: what do these actually do?
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum EncounterType
         {
-            [EnumMember(Value = "None")] NONE,
-            [EnumMember(Value = "Short4X4Peaceful")] SHORT_4X4_PEACEFUL,
-            [EnumMember(Value = "Short4X4Hostile")] SHORT_4X4_HOSTILE,
-            [EnumMember(Value = "Short8X8Peaceful")] SHORT_8X8_PEACEFUL,
-            [EnumMember(Value = "Short8X8Hostile")] SHORT_8X8_HOSTILE,
-            [EnumMember(Value = "Short16X16Peaceful")] SHORT_16X16_PEACEFUL,
-            [EnumMember(Value = "Short16X16Hostile")] SHORT_16X16_HOSTILE,
-            [EnumMember(Value = "Tall4X4Peaceful")] TALL_4X4_PEACEFUL,
-            [EnumMember(Value = "Tall4X4Hostile")] TALL_4X4_HOSTILE,
-            [EnumMember(Value = "Tall8X8Peaceful")] TALL_8X8_PEACEFUL,
-            [EnumMember(Value = "Tall8X8Hostile")] TALL_8X8_HOSTILE,
-            [EnumMember(Value = "Tall16X16Peaceful")] TALL_16X16_PEACEFUL,
-            [EnumMember(Value = "Tall16X16Hostile")] TALL_16X16_HOSTILE,
+            [JsonStringEnumMemberName("None")] NONE,
+            [JsonStringEnumMemberName("Short4X4Peaceful")] SHORT_4X4_PEACEFUL,
+            [JsonStringEnumMemberName("Short4X4Hostile")] SHORT_4X4_HOSTILE,
+            [JsonStringEnumMemberName("Short8X8Peaceful")] SHORT_8X8_PEACEFUL,
+            [JsonStringEnumMemberName("Short8X8Hostile")] SHORT_8X8_HOSTILE,
+            [JsonStringEnumMemberName("Short16X16Peaceful")] SHORT_16X16_PEACEFUL,
+            [JsonStringEnumMemberName("Short16X16Hostile")] SHORT_16X16_HOSTILE,
+            [JsonStringEnumMemberName("Tall4X4Peaceful")] TALL_4X4_PEACEFUL,
+            [JsonStringEnumMemberName("Tall4X4Hostile")] TALL_4X4_HOSTILE,
+            [JsonStringEnumMemberName("Tall8X8Peaceful")] TALL_8X8_PEACEFUL,
+            [JsonStringEnumMemberName("Tall8X8Hostile")] TALL_8X8_HOSTILE,
+            [JsonStringEnumMemberName("Tall16X16Peaceful")] TALL_16X16_PEACEFUL,
+            [JsonStringEnumMemberName("Tall16X16Hostile")] TALL_16X16_HOSTILE,
         }
 
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum AnchorState
         {
-            [EnumMember(Value = "Off")] OFF,
+            [JsonStringEnumMemberName("Off")] OFF,
         }
     }
 }

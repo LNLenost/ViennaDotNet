@@ -2,7 +2,7 @@
 
 namespace ViennaDotNet.ApiServer.Types.Catalog;
 
-public record BoostMetadata(
+public sealed record BoostMetadata(
     string name,
     string type,
     string attribute,

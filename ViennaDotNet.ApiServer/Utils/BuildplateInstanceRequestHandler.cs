@@ -1,8 +1,8 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
 using System.Diagnostics;
 using System.Text;
 using ViennaDotNet.Buildplate.Connector.Model;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Buildplate.Connector.Model;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
@@ -46,7 +46,7 @@ public sealed class BuildplateInstanceRequestHandler
                                     return null;
 
                                 BuildplateLoadResponse? buildplateLoadResponse = await handleLoad(buildplateLoadRequest.playerId, buildplateLoadRequest.buildplateId);
-                                return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
+                                return buildplateLoadResponse is not null ? Json.Serialize(buildplateLoadResponse) : null;
                             }
                         case "loadShared":
                             {
@@ -57,7 +57,7 @@ public sealed class BuildplateInstanceRequestHandler
                                 }
 
                                 BuildplateLoadResponse? buildplateLoadResponse = await handleLoadShared(sharedBuildplateLoadRequest.sharedBuildplateId);
-                                return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
+                                return buildplateLoadResponse is not null ? Json.Serialize(buildplateLoadResponse) : null;
                             }
                         case "loadEncounter":
 
@@ -69,7 +69,7 @@ public sealed class BuildplateInstanceRequestHandler
                                 }
 
                                 BuildplateLoadResponse? buildplateLoadResponse = await handleLoadEncounter(encounterBuildplateLoadRequest.encounterBuildplateId);
-                                return buildplateLoadResponse is not null ? JsonConvert.SerializeObject(buildplateLoadResponse) : null;
+                                return buildplateLoadResponse is not null ? Json.Serialize(buildplateLoadResponse) : null;
                             }
                         case "saved":
                             {
@@ -87,7 +87,7 @@ public sealed class BuildplateInstanceRequestHandler
                                     return null;
 
                                 PlayerConnectedResponse? playerConnectedResponse = handlePlayerConnected(requestWithInstanceId.instanceId, requestWithInstanceId.request);
-                                return playerConnectedResponse is not null ? JsonConvert.SerializeObject(playerConnectedResponse) : null;
+                                return playerConnectedResponse is not null ? Json.Serialize(playerConnectedResponse) : null;
                             }
                         case "playerDisconnected":
                             {
@@ -96,7 +96,7 @@ public sealed class BuildplateInstanceRequestHandler
                                     return null;
 
                                 PlayerDisconnectedResponse? playerDisconnectedResponse = handlePlayerDisconnected(requestWithInstanceId.instanceId, requestWithInstanceId.request, request.timestamp);
-                                return playerDisconnectedResponse is not null ? JsonConvert.SerializeObject(playerDisconnectedResponse) : null;
+                                return playerDisconnectedResponse is not null ? Json.Serialize(playerDisconnectedResponse) : null;
                             }
                         case "playerDead":
                             {
@@ -107,7 +107,7 @@ public sealed class BuildplateInstanceRequestHandler
                                 }
 
                                 bool? respawn = handlePlayerDead(requestWithInstanceId.instanceId, requestWithInstanceId.request, request.timestamp);
-                                return respawn is not null ? JsonConvert.SerializeObject(respawn.Value) : null;
+                                return respawn is not null ? Json.Serialize(respawn.Value) : null;
                             }
                         case "getInitialPlayerState":
                             {
@@ -118,7 +118,7 @@ public sealed class BuildplateInstanceRequestHandler
                                 }
 
                                 InitialPlayerStateResponse? initialPlayerStateResponse = handleGetInitialPlayerState(requestWithInstanceId.instanceId, requestWithInstanceId.request, request.timestamp);
-                                return initialPlayerStateResponse is not null ? JsonConvert.SerializeObject(initialPlayerStateResponse) : null;
+                                return initialPlayerStateResponse is not null ? Json.Serialize(initialPlayerStateResponse) : null;
                             }
                         case "getInventory":
                             {
@@ -127,7 +127,7 @@ public sealed class BuildplateInstanceRequestHandler
                                     return null;
 
                                 InventoryResponse? inventoryResponse = handleGetInventory(requestWithInstanceId.instanceId, requestWithInstanceId.request);
-                                return inventoryResponse is not null ? JsonConvert.SerializeObject(inventoryResponse) : null;
+                                return inventoryResponse is not null ? Json.Serialize(inventoryResponse) : null;
                             }
                         case "inventoryAdd":
                             {
@@ -144,25 +144,23 @@ public sealed class BuildplateInstanceRequestHandler
                                     return null;
 
                                 object response = handleInventoryRemove(requestWithBuildplateId.instanceId, requestWithBuildplateId.request);
-                                return response is not null ? JsonConvert.SerializeObject(response) : null;
+                                return response is not null ? Json.Serialize(response) : null;
                             }
                         case "inventoryUpdateWear":
                             {
                                 RequestWithInstanceId<InventoryUpdateItemWearMessage>? requestWithInstanceId = readRequest<InventoryUpdateItemWearMessage>(request.data);
-                                if (requestWithInstanceId is null)
-                                    return null;
 
-                                return handleInventoryUpdateWear(requestWithInstanceId.instanceId, requestWithInstanceId.request) ? "" : null;
+                                return requestWithInstanceId is null
+                                    ? null
+                                    : handleInventoryUpdateWear(requestWithInstanceId.instanceId, requestWithInstanceId.request) ? "" : null;
                             }
                         case "inventorySetHotbar":
                             {
                                 RequestWithInstanceId<InventorySetHotbarMessage>? requestWithInstanceId = readRequest<InventorySetHotbarMessage>(request.data);
-                                if (requestWithInstanceId is null)
-                                {
-                                    return null;
-                                }
 
-                                return handleInventorySetHotbar(requestWithInstanceId.instanceId, requestWithInstanceId.request) ? "" : null;
+                                return requestWithInstanceId is null
+                                    ? null
+                                    : handleInventorySetHotbar(requestWithInstanceId.instanceId, requestWithInstanceId.request) ? "" : null;
                             }
                         default:
                             return null;
@@ -650,15 +648,12 @@ public sealed class BuildplateInstanceRequestHandler
         return new PlayerDisconnectedResponse();
     }
 
-    private bool? handlePlayerDead(string instanceId, string playerId, long currentTime)
+    private static bool? handlePlayerDead(string instanceId, string playerId, long currentTime)
     {
         BuildplateInstancesManager.InstanceInfo? instanceInfo = buildplateInstancesManager.getInstanceInfo(instanceId);
-        if (instanceInfo is null)
-        {
-            return null;
-        }
-
-        return instanceInfo.type is BuildplateInstancesManager.InstanceType.BUILD or BuildplateInstancesManager.InstanceType.SHARED_BUILD;
+        return instanceInfo is null
+            ? null
+            : instanceInfo.type is BuildplateInstancesManager.InstanceType.BUILD or BuildplateInstancesManager.InstanceType.SHARED_BUILD;
     }
 
     private sealed record EffectInfo(
@@ -899,7 +894,7 @@ public sealed class BuildplateInstanceRequestHandler
     {
         try
         {
-            RequestWithInstanceId<T>? request = JsonConvert.DeserializeObject<RequestWithInstanceId<T>>(str);
+            RequestWithInstanceId<T>? request = Json.Deserialize<RequestWithInstanceId<T>>(str);
             return request;
         }
         catch (Exception ex)
@@ -913,7 +908,7 @@ public sealed class BuildplateInstanceRequestHandler
     {
         try
         {
-            T? request = JsonConvert.DeserializeObject<T>(str);
+            T? request = Json.Deserialize<T>(str);
             return request;
         }
         catch (Exception ex)

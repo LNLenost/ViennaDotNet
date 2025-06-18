@@ -62,18 +62,19 @@ internal static class MCServer
         IEnumerable<string> files = Directory.EnumerateFiles(modsDir)
             .Select(file => Path.GetFileName(file));
 
-        if (files.Where(
-            name => name.StartsWith("fabric-api") &&
-            Path.GetExtension(name) == ".jar").Count() == 0
+        if (!files.Any(name => name.StartsWith("fabric-api") &&
+            Path.GetExtension(name) == ".jar")
         )
+        {
             status |= Status.FabricApiMissing;
+        }
 
-        if (files.Where(
-            name => name.StartsWith("fountain") &&
+        if (!files.Any(name => name.StartsWith("fountain") &&
             Path.GetExtension(name) == ".jar" &&
-            !name.Contains("SNAPSHOT")/*make sure this is NOT the bridge*/
-        ).Count() == 0)
+            !name.Contains("SNAPSHOT")/*make sure this is NOT the bridge*/))
+        {
             status |= Status.FountainModMissing;
+        }
 
         return status;
     }

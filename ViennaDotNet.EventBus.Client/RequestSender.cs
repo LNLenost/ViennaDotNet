@@ -65,10 +65,7 @@ public sealed partial class RequestSender
         var task = queuedRequestResponses.Count == 0 ? currentPendingResponse : queuedRequestResponses.Last!.Value;
         Monitor.Exit(_lock);
 
-        if (task is not null)
-        {
-            task.Task.Wait();
-        }
+        task?.Task.Wait();
     }
 
     internal Task<bool> handleMessage(string message)
@@ -156,33 +153,27 @@ public sealed partial class RequestSender
     }
 
     private static bool validateQueueName(string queueName)
-    {
-        if (string.IsNullOrWhiteSpace(queueName) || queueName.Length == 0 || Regex1().IsMatch(queueName) || Regex2().IsMatch(queueName))
-            return false;
-
-        return true;
-    }
+        => !string.IsNullOrWhiteSpace(queueName) && queueName.Length != 0 && !GetRegex1().IsMatch(queueName) && !GetRegex2().IsMatch(queueName);
 
     private static bool validateType(string type)
-    {
-        if (string.IsNullOrWhiteSpace(type) || type.Length == 0 || Regex1().IsMatch(type) || Regex2().IsMatch(type))
-            return false;
-
-        return true;
-    }
+        => !string.IsNullOrWhiteSpace(type) && type.Length != 0 && !GetRegex1().IsMatch(type) && !GetRegex2().IsMatch(type);
 
     private static bool validateData(string str)
     {
         for (int i = 0; i < str.Length; i++)
+        {
             if (str[i] < 32 || str[i] >= 127)
+            {
                 return false;
+            }
+        }
 
         return true;
     }
 
     [GeneratedRegex("[^A-Za-z0-9_\\-]")]
-    private static partial Regex Regex1();
+    private static partial Regex GetRegex1();
 
     [GeneratedRegex("^[^A-Za-z0-9]")]
-    private static partial Regex Regex2();
+    private static partial Regex GetRegex2();
 }

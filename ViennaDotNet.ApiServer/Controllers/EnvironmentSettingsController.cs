@@ -1,9 +1,10 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
@@ -15,84 +16,95 @@ public class EnvironmentSettingsController : ControllerBase
     [HttpGet("features")]
     public IActionResult Features()
     {
-        EarthApiResponse resp = new EarthApiResponse(new JObject(
-            new JProperty("workshop_enabled", true),
-            new JProperty("buildplates_enabled", true),
-            new JProperty("enable_ruby_purchasing", true),
-            new JProperty("commerce_enabled", true),
-            new JProperty("full_logging_enabled", true),
-            new JProperty("challenges_enabled", true),
-            new JProperty("craftingv2_enabled", true),
-            new JProperty("smeltingv2_enabled", true),
-            new JProperty("inventory_item_boosts_enabled", true),
-            new JProperty("player_health_enabled", true),
-            new JProperty("minifigs_enabled", true),
-            new JProperty("potions_enabled", true),
-            new JProperty("social_link_launch_enabled", true),
-            new JProperty("social_link_share_enabled", true),
-            new JProperty("encoded_join_enabled", true),
-            new JProperty("adventure_crystals_enabled", true),
-            new JProperty("item_limits_enabled", true),
-            new JProperty("adventure_crystals_ftue_enabled", true),
-            new JProperty("expire_crystals_on_cleanup_enabled", true),
-            new JProperty("challenges_v2_enabled", true),
-            new JProperty("player_journal_enabled", true),
-            new JProperty("player_stats_enabled", true),
-            new JProperty("activity_log_enabled", true),
-            new JProperty("seasons_enabled", false),
-            new JProperty("daily_login_enabled", true),
-            new JProperty("store_pdp_enabled", true),
-            new JProperty("hotbar_stacksplitting_enabled", true),
-            new JProperty("fancy_rewards_screen_enabled", true),
-            new JProperty("async_ecs_dispatcher", true),
-            new JProperty("adventure_oobe_enabled", true),
-            new JProperty("tappable_oobe_enabled", true),
-            new JProperty("map_permission_oobe_enabled", true),
-            new JProperty("journal_oobe_enabled", true),
-            new JProperty("freedom_oobe_enabled", true),
-            new JProperty("challenge_oobe_enabled", true),
-            new JProperty("level_rewards_v2_enabled", true),
-            new JProperty("content_driven_season_assets", true),
-            new JProperty("paid_earned_rubies_enabled", true)
-        ));
+        EarthApiResponse resp = new EarthApiResponse(new Dictionary<string, object>
+        {
+            ["workshop_enabled"] = true,
+            ["buildplates_enabled"] = true,
+            ["enable_ruby_purchasing"] = true,
+            ["commerce_enabled"] = true,
+            ["full_logging_enabled"] = true,
+            ["challenges_enabled"] = true,
+            ["craftingv2_enabled"] = true,
+            ["smeltingv2_enabled"] = true,
+            ["inventory_item_boosts_enabled"] = true,
+            ["player_health_enabled"] = true,
+            ["minifigs_enabled"] = true,
+            ["potions_enabled"] = true,
+            ["social_link_launch_enabled"] = true,
+            ["social_link_share_enabled"] = true,
+            ["encoded_join_enabled"] = true,
+            ["adventure_crystals_enabled"] = true,
+            ["item_limits_enabled"] = true,
+            ["adventure_crystals_ftue_enabled"] = true,
+            ["expire_crystals_on_cleanup_enabled"] = true,
+            ["challenges_v2_enabled"] = true,
+            ["player_journal_enabled"] = true,
+            ["player_stats_enabled"] = true,
+            ["activity_log_enabled"] = true,
+            ["seasons_enabled"] = false,
+            ["daily_login_enabled"] = true,
+            ["store_pdp_enabled"] = true,
+            ["hotbar_stacksplitting_enabled"] = true,
+            ["fancy_rewards_screen_enabled"] = true,
+            ["async_ecs_dispatcher"] = true,
+            ["adventure_oobe_enabled"] = true,
+            ["tappable_oobe_enabled"] = true,
+            ["map_permission_oobe_enabled"] = true,
+            ["journal_oobe_enabled"] = true,
+            ["freedom_oobe_enabled"] = true,
+            ["challenge_oobe_enabled"] = true,
+            ["level_rewards_v2_enabled"] = true,
+            ["content_driven_season_assets"] = true,
+            ["paid_earned_rubies_enabled"] = true,
+        });
 
-        string sResp = JsonConvert.SerializeObject(resp, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+        string sResp = Json.Serialize(resp, new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        });
         return Content(sResp, "application/json");
     }
 
     [HttpGet("settings")]
     public IActionResult Settings()
     {
-        JObject resp = new JObject(
-            new JProperty("encounterinteractionradius", 40),
-            new JProperty("tappableinteractionradius", 70),
-            new JProperty("tappablevisibleradius", -5),
-            new JProperty("targetpossibletappables", 100),
-            new JProperty("tile0", 10537),
-            new JProperty("slowrequesttimeout", 2500),
-            new JProperty("cullingradius", 50),
-            new JProperty("commontapcount", 3),
-            new JProperty("epictapcount", 7),
-            new JProperty("speedwarningcooldown", 3600),
-            new JProperty("mintappablesrequiredpertile", 22),
-            new JProperty("targetactivetappables", 30),
-            new JProperty("tappablecullingradius", 500),
-            new JProperty("raretapcount", 5),
-            new JProperty("requestwarningtimeout", 10000),
-            new JProperty("speedwarningthreshold", 11.176f),
-            new JProperty("asaanchormaxplaneheightthreshold", 0.5f),
-            new JProperty("maxannouncementscount", 0),
-            new JProperty("removethislater", 23),
-            new JProperty("crystalslotcap", 3),
-            new JProperty("crystaluncommonduration", 10),
-            new JProperty("crystalrareduration", 10),
-            new JProperty("crystalepicduration", 10),
-            new JProperty("crystalcommonduration", 10),
-            new JProperty("crystallegendaryduration", 10),
-            new JProperty("maximumpersonaltimedchallenges", 3),
-            new JProperty("maximumpersonalcontinuouschallenges", 3)
-        );
+        EarthApiResponse resp = new EarthApiResponse(new Dictionary<string, object>
+        {
+            ["encounterinteractionradius"] = 40,
+            ["tappableinteractionradius"] = 70,
+            ["tappablevisibleradius"] = -5,
+            ["targetpossibletappables"] = 100,
+            ["tile0"] = 10537,
+            ["slowrequesttimeout"] = 2500,
+            ["cullingradius"] = 50,
+            ["commontapcount"] = 3,
+            ["epictapcount"] = 7,
+            ["speedwarningcooldown"] = 3600,
+            ["mintappablesrequiredpertile"] = 22,
+            ["targetactivetappables"] = 30,
+            ["tappablecullingradius"] = 500,
+            ["raretapcount"] = 5,
+            ["requestwarningtimeout"] = 10000,
+            ["speedwarningthreshold"] = 11.176f,
+            ["asaanchormaxplaneheightthreshold"] = 0.5f,
+            ["maxannouncementscount"] = 0,
+            ["removethislater"] = 23,
+            ["crystalslotcap"] = 3,
+            ["crystaluncommonduration"] = 10,
+            ["crystalrareduration"] = 10,
+            ["crystalepicduration"] = 10,
+            ["crystalcommonduration"] = 10,
+            ["crystallegendaryduration"] = 10,
+            ["maximumpersonaltimedchallenges"] = 3,
+            ["maximumpersonalcontinuouschallenges"] = 3
+        });
 
-        return Content(JsonConvert.SerializeObject(new EarthApiResponse(resp), new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore }), "application/json");
+        string sResp = Json.Serialize(resp, new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        });
+        return Content(sResp, "application/json");
     }
 }

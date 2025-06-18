@@ -1,12 +1,10 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Buildplates;
 
-[JsonConverter(typeof(StringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SurfaceOrientation
 {
-    [EnumMember(Value = "Horizontal")] HORIZONTAL,
-    [EnumMember(Value = "Vertical")] VERTICAL    // TODO: unverified
+    [JsonStringEnumMemberName("Horizontal")] HORIZONTAL,
+    [JsonStringEnumMemberName("Vertical")] VERTICAL    // TODO: unverified
 }

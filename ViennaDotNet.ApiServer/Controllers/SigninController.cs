@@ -1,10 +1,9 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Serilog;
 using System.Text.RegularExpressions;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.ApiServer.Controllers;
@@ -44,16 +43,17 @@ public partial class SigninController : ControllerBase
         // TODO: generate secure session token
         string token = userId.ToUpperInvariant();
 
-        string str = JsonConvert.SerializeObject(new EarthApiResponse(new JObject(
-            new JProperty("authenticationToken", token),
-            new JProperty("basePath", "/1"),
-            new JProperty("clientProperties", new JObject()),
-            new JProperty("mixedReality", null!),
-            new JProperty("mrToken", null!),
-            new JProperty("streams", null!),
-            new JProperty("tokens", new JObject()),
-            new JProperty("updates", new JObject()))
-        ));
+        string str = Json.Serialize(new EarthApiResponse(new Dictionary<string, object?>()
+        {
+            ["authenticationToken"] = token,
+            ["basePath"] = "/1",
+            ["clientProperties"] = new object(),
+            ["mixedReality"] = null,
+            ["mrToken"] = null,
+            ["streams"] = null,
+            ["tokens"] = new object(),
+            ["updates"] = new object(),
+        }));
 
         return Content(str, "application/json");
     }

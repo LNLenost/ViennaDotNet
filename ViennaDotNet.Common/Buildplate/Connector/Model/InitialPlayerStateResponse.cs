@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.Common.Buildplate.Connector.Model;
 
@@ -14,7 +13,7 @@ public sealed record InitialPlayerStateResponse(
         long remainingDuration
     )
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Type
         {
             ADVENTURE_XP,

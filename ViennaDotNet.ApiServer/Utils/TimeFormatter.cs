@@ -5,7 +5,6 @@ namespace ViennaDotNet.ApiServer.Utils;
 public static class TimeFormatter
 {
     private static readonly string JSON_DATE_FORMAT = "yyyy-MM-ddTHH:mm:ssZ";
-    private static readonly string JSON_DURATION_FORMAT = "{0}:{1:D2}:{2:D2}";
 
     public static string FormatTime(long time)
     {
@@ -13,9 +12,7 @@ public static class TimeFormatter
         return FormatTime(dateTime);
     }
     public static string FormatTime(DateTime dateTime)
-    {
-        return dateTime.ToString(JSON_DATE_FORMAT, CultureInfo.InvariantCulture);
-    }
+        => dateTime.ToString(JSON_DATE_FORMAT, CultureInfo.InvariantCulture);
 
     public static string FormatDuration(long duration)
     {
@@ -23,10 +20,7 @@ public static class TimeFormatter
         return FormatDuration(timeSpan);
     }
     public static string FormatDuration(TimeSpan timeSpan)
-    {
-        return $"{(int)timeSpan.TotalHours}:{timeSpan.Minutes:D2}:{timeSpan.Seconds:D2}";
-        //return string.Format(JSON_DURATION_FORMAT, (int)timeSpan.TotalHours, timeSpan.Minutes, timeSpan.Seconds);
-    }
+        => $"{(int)timeSpan.TotalHours}:{timeSpan.Minutes:D2}:{timeSpan.Seconds:D2}";
 
     public static long ParseDuration(string duration)
     {

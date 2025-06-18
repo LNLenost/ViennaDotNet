@@ -1,8 +1,8 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Serilog;
+﻿using Serilog;
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using ViennaDotNet.Buildplate.Connector.Model;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -11,7 +11,6 @@ namespace ViennaDotNet.Buildplate.Launcher;
 public class InstanceManager
 {
     private readonly Starter starter;
-    private readonly PreviewGenerator previewGenerator;
 
     private readonly Publisher publisher;
     private readonly RequestHandler requestHandler;
@@ -19,7 +18,7 @@ public class InstanceManager
     private bool shuttingDown = false;
     private readonly object _lock = new();
 
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     private enum InstanceType
     {
         BUILD,
@@ -53,10 +52,9 @@ public class InstanceManager
         bool night
     );
 
-    public InstanceManager(EventBusClient eventBusClient, Starter starter, PreviewGenerator previewGenerator)
+    public InstanceManager(EventBusClient eventBusClient, Starter starter)
     {
         this.starter = starter;
-        this.previewGenerator = previewGenerator;
 
         publisher = eventBusClient.addPublisher();
 
@@ -78,7 +76,7 @@ public class InstanceManager
                     StartRequest startRequest;
                     try
                     {
-                        startRequest = JsonConvert.DeserializeObject<StartRequest>(request.data)!;
+                        startRequest = Json.Deserialize<StartRequest>(request.data)!;
                     }
                     catch (Exception ex)
                     {
@@ -113,13 +111,13 @@ public class InstanceManager
                         return null;
                     }
 
-                    sendEventBusMessage("started", JsonConvert.SerializeObject(new StartNotification(
+                    sendEventBusMessage("started", Json.Serialize(new StartNotification(
                         instanceId,
                         startRequest.playerId,
                         startRequest.encounterId,
                         startRequest.buildplateId,
-                        instance.publicAddress,
-                        instance.port,
+                        instance.PublicAddress,
+                        instance.Port,
                         startRequest.type
                     )));
 
@@ -127,7 +125,7 @@ public class InstanceManager
                     {
                         instance.waitForShutdown();
 
-                        sendEventBusMessage("stopped", instance.instanceId);
+                        sendEventBusMessage("stopped", instance.InstanceId);
 
                         Monitor.Enter(_lock);
                         runningInstanceCount -= 1;
@@ -142,7 +140,7 @@ public class InstanceManager
                     byte[] serverData;
                     try
                     {
-                        previewRequest = JsonConvert.DeserializeObject<PreviewRequest>(request.data)!;
+                        previewRequest = Json.Deserialize<PreviewRequest>(request.data)!;
                         serverData = Convert.FromBase64String(previewRequest.serverDataBase64);
                     }
                     catch (Exception ex)
@@ -153,14 +151,18 @@ public class InstanceManager
 
                     Log.Information("Generating buildplate preview");
 
-                    string? preview = previewGenerator.generatePreview(serverData, previewRequest.night);
-                    if (preview == null)
+                    string? preview = PreviewGenerator.GeneratePreview(serverData, previewRequest.night);
+                    if (preview is null)
+                    {
                         Log.Warning("Could not generate preview for buildplate");
+                    }
 
                     return preview;
                 }
                 else
+                {
                     return null;
+                }
             },
             () =>
             {

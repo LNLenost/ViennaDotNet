@@ -1,13 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.DB.Models.Player.Workshop;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class CraftingSlot
 {
-    [JsonProperty]
+    [JsonInclude]
     public ActiveJob? activeJob;
-    [JsonProperty]
+    [JsonInclude]
     public bool locked;
 
     public CraftingSlot()
@@ -16,7 +15,7 @@ public sealed class CraftingSlot
         locked = false;
     }
 
-    public record ActiveJob(
+    public sealed record ActiveJob(
         string sessionId,
         string recipeId,
         long startTime,
@@ -24,7 +23,5 @@ public sealed class CraftingSlot
         int totalRounds,
         int collectedRounds,
         bool finishedEarly
-    )
-    {
-    }
+    );
 }

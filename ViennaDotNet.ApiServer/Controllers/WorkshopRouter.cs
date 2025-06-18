@@ -2,11 +2,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Excceptions;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Player;
@@ -93,7 +93,7 @@ public class WorkshopRouter : ControllerBase
             }
         };
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(workshop));
+        string resp = Json.Serialize(new EarthApiResponse(workshop));
         return Content(resp, "application/json");
     }
 
@@ -114,7 +114,7 @@ public class WorkshopRouter : ControllerBase
                 .ExecuteAsync(earthDB, cancellationToken);
             EarthDB.Results.GenericResult<CraftingSlots> craftingSlotsResult = results.GetGeneric<CraftingSlots>("crafting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(CraftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version, slotIndex)));
+            string resp = Json.Serialize(new EarthApiResponse(CraftingSlotModelToResponseIncludingLocked(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version, slotIndex)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -140,7 +140,7 @@ public class WorkshopRouter : ControllerBase
                 .ExecuteAsync(earthDB, cancellationToken);
             EarthDB.Results.GenericResult<SmeltingSlots> smeltingSlotsResult = results.GetGeneric<SmeltingSlots>("smelting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(SmeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version, slotIndex)));
+            string resp = Json.Serialize(new EarthApiResponse(SmeltingSlotModelToResponseIncludingLocked(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version, slotIndex)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -312,7 +312,7 @@ public class WorkshopRouter : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -482,7 +482,7 @@ public class WorkshopRouter : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -535,10 +535,10 @@ public class WorkshopRouter : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>()
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>()
             {
                 { "rewards", ((Rewards) results.getExtra("rewards")).toApiResponse() }
-            }, new EarthApiResponse.Updates(results)));
+            }, new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -600,10 +600,10 @@ public class WorkshopRouter : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>()
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>()
             {
                 { "rewards", ((Rewards) results.getExtra("rewards")).toApiResponse() }
-            }, new EarthApiResponse.Updates(results)));
+            }, new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -672,7 +672,7 @@ public class WorkshopRouter : ControllerBase
 
             EarthDB.Results.GenericResult<CraftingSlots> craftingSlotsResult = results.GetGeneric<CraftingSlots>("crafting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(CraftingSlotModelToResponse(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(CraftingSlotModelToResponse(craftingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, craftingSlotsResult.version), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -752,7 +752,7 @@ public class WorkshopRouter : ControllerBase
 
             EarthDB.Results.GenericResult<SmeltingSlots> smeltingSlotsResult = results.GetGeneric<SmeltingSlots>("smelting");
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(SmeltingSlotModelToResponse(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(SmeltingSlotModelToResponse(smeltingSlotsResult.GValue.slots[slotIndex - 1], requestStartedOn, smeltingSlotsResult.version), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -818,7 +818,7 @@ public class WorkshopRouter : ControllerBase
 
             Profile profile = (Profile)results.Get("profile").Value;
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new SplitRubies(profile.rubies.purchased, profile.rubies.earned), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(new SplitRubies(profile.rubies.purchased, profile.rubies.earned), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -885,7 +885,7 @@ public class WorkshopRouter : ControllerBase
 
             Profile profile = (Profile)results.Get("profile").Value;
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new SplitRubies(profile.rubies.purchased, profile.rubies.earned), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(new SplitRubies(profile.rubies.purchased, profile.rubies.earned), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -916,7 +916,7 @@ public class WorkshopRouter : ControllerBase
 
         CraftingCalculator.FinishPrice finishPrice = CraftingCalculator.calculateFinishPrice(remainingTime);
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(new FinishPrice(finishPrice.price, 0, TimeFormatter.FormatDuration(finishPrice.validFor))));
+        string resp = Json.Serialize(new EarthApiResponse(new FinishPrice(finishPrice.price, 0, TimeFormatter.FormatDuration(finishPrice.validFor))));
         return Content(resp, "application/json");
     }
 
@@ -942,7 +942,7 @@ public class WorkshopRouter : ControllerBase
 
         SmeltingCalculator.FinishPrice finishPrice = SmeltingCalculator.calculateFinishPrice(remainingTime);
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(new FinishPrice(finishPrice.price, 0, TimeFormatter.FormatDuration(finishPrice.validFor))));
+        string resp = Json.Serialize(new EarthApiResponse(new FinishPrice(finishPrice.price, 0, TimeFormatter.FormatDuration(finishPrice.validFor))));
         return Content(resp, "application/json");
     }
 
@@ -989,7 +989,7 @@ public class WorkshopRouter : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -1041,7 +1041,7 @@ public class WorkshopRouter : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.Updates(results)));
+            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>(), new EarthApiResponse.UpdatesResponse(results)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)

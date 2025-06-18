@@ -17,7 +17,7 @@ internal static class Program
         [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]
         public string EventBusConnectionString { get; set; }
 
-        [Option("dir", Default = "./data", Required = false, HelpText = "Static data path")]
+        [Option("dir", Default = "./staticdata", Required = false, HelpText = "Static data path")]
         public string StaticDataPath { get; set; }
     }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

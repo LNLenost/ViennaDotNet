@@ -1,13 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class Buildplates
 {
-    [JsonProperty]
-    private readonly Dictionary<string, Buildplate> buildplates = [];
+    [JsonInclude, JsonPropertyName("buildplates")]
+    public readonly Dictionary<string, Buildplate> _buildplates = [];
 
     public Buildplates()
     {
@@ -15,45 +14,36 @@ public sealed class Buildplates
     }
 
     public void addBuildplate(string id, Buildplate buildplate)
-    {
-        buildplates[id] = buildplate;
-    }
+        => _buildplates[id] = buildplate;
 
-    public Buildplate? getBuildplate(string id)
-    {
-        return buildplates.GetOrDefault(id, null);
-    }
+    public Buildplate? getBuildplate(string id) 
+        => _buildplates.GetOrDefault(id, null);
 
-    public record BuildplateEntry(
+    public sealed record BuildplateEntry(
         string id,
         Buildplate buildplate
-    )
-    {
-    }
+    );
 
     public BuildplateEntry[] getBuildplates()
-    {
-        return [.. buildplates.Select(entry => new BuildplateEntry(entry.Key, entry.Value))];
-    }
+        => [.. _buildplates.Select(entry => new BuildplateEntry(entry.Key, entry.Value))];
 
-    [JsonObject(MemberSerialization.OptIn)]
     public sealed class Buildplate
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly int size;
-        [JsonProperty]
+        [JsonInclude]
         public readonly int offset;
-        [JsonProperty]
+        [JsonInclude]
         public readonly int scale;
 
-        [JsonProperty]
+        [JsonInclude]
         public readonly bool night;
 
-        [JsonProperty]
+        [JsonInclude]
         public long lastModified;
-        [JsonProperty]
+        [JsonInclude]
         public string serverDataObjectId;
-        [JsonProperty]
+        [JsonInclude]
         public string previewObjectId;
 
         public Buildplate(int size, int offset, int scale, bool night, long lastModified, string serverDataObjectId, string previewObjectId)

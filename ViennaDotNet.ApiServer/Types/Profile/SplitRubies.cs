@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Profile;
 
-public record SplitRubies(
+public sealed record SplitRubies(
     int purchased,
     int earned
-)
-{
-}
+);

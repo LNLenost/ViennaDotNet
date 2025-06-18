@@ -1,11 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.DB.Models.Player.Workshop;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class SmeltingSlots
 {
-    [JsonProperty]
+    [JsonInclude]
     public readonly SmeltingSlot[] slots;
 
     public SmeltingSlots()

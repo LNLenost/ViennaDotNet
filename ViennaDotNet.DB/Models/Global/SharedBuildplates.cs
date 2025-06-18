@@ -1,20 +1,20 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Global;
 
 public sealed class SharedBuildplates
 {
-    [JsonProperty]
-    private readonly Dictionary<string, SharedBuildplate> sharedBuildplates = [];
+    [JsonInclude, JsonPropertyName("sharedBuildplates")]
+    public readonly Dictionary<string, SharedBuildplate> _sharedBuildplates = [];
     public void addSharedBuildplate(string id, SharedBuildplate buildplate)
     {
-        sharedBuildplates[id] = buildplate;
+        _sharedBuildplates[id] = buildplate;
     }
 
     public SharedBuildplate? getSharedBuildplate(string id)
     {
-        return sharedBuildplates.GetOrDefault(id);
+        return _sharedBuildplates.GetOrDefault(id);
     }
 
     public sealed class SharedBuildplate

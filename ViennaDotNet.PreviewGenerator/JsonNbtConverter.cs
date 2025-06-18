@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Excceptions;
 using ViennaDotNet.PreviewGenerator.NBT;
 
@@ -46,15 +44,15 @@ internal sealed class JsonNbtConverter
 
     public abstract class JsonNbtTag
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Type
         {
-            [EnumMember(Value = "compound")] COMPOUND,
-            [EnumMember(Value = "list")] LIST,
-            [EnumMember(Value = "int")] INT,
-            [EnumMember(Value = "byte")] BYTE,
-            [EnumMember(Value = "float")] FLOAT,
-            [EnumMember(Value = "string")] STRING
+            [JsonStringEnumMemberName("compound")] COMPOUND,
+            [JsonStringEnumMemberName("list")] LIST,
+            [JsonStringEnumMemberName("int")] INT,
+            [JsonStringEnumMemberName("byte")] BYTE,
+            [JsonStringEnumMemberName("float")] FLOAT,
+            [JsonStringEnumMemberName("string")] STRING
         }
 
         public readonly Type type;

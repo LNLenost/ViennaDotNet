@@ -1,7 +1,6 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Serilog;
+﻿using Serilog;
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
@@ -31,8 +30,7 @@ public sealed class TappablesManager
     }
 
     public Tappable[] getTappablesAround(double lat, double lon, double radius)
-    {
-        return [.. getTileIdsAround(lat, lon, radius)
+        => [.. getTileIdsAround(lat, lon, radius)
             .Select(tileId => tappables.GetOrDefault(tileId, null))
             .Where(tappables => tappables != null)
             .Select(items => items!.Values)
@@ -44,11 +42,9 @@ public sealed class TappablesManager
                 double distanceSquared = dx * dx + dy * dy;
                 return distanceSquared <= radius * radius;
             })];
-    }
 
     public Encounter[] getEncountersAround(double lat, double lon, double radius)
-    {
-        return [.. getTileIdsAround(lat, lon, radius)
+        => [.. getTileIdsAround(lat, lon, radius)
             .Select(tileId => encounters.GetOrDefault(tileId))
             .Where(encounters => encounters is not null)
             .SelectMany(encounters => encounters!.Values)
@@ -59,11 +55,9 @@ public sealed class TappablesManager
                 double distanceSquared = dx * dx + dy * dy;
                 return distanceSquared <= radius * radius;
             })];
-    }
 
     public Encounter[] getEncountersAround(float lat, float lon, float radius)
-    {
-        return [.. getTileIdsAround(lat, lon, radius)
+        => [.. getTileIdsAround(lat, lon, radius)
             .Select(tileId => encounters.GetValueOrDefault(tileId))
             .Where(encounters => encounters is not null)
             .Select(encounters => encounters!.Values)
@@ -75,7 +69,6 @@ public sealed class TappablesManager
                 double distanceSquared = dx * dx + dy * dy;
                 return distanceSquared <= radius * radius;
             })];
-    }
 
     private static string[] getTileIdsAround(double lat, double lon, double radius)
     {
@@ -142,7 +135,7 @@ public sealed class TappablesManager
     {
         int tileX = xToTile(lonToX(lon));
         int tileY = yToTile(latToY(lat));
-        string? response = requestSender.request("tappables", "activeTile", JsonConvert.SerializeObject(new ActiveTileNotification(tileX, tileY, playerId))).Task.Result;
+        string? response = requestSender.request("tappables", "activeTile", Json.Serialize(new ActiveTileNotification(tileX, tileY, playerId))).Task.Result;
         if (response == null)
             Log.Warning("Active tile notification event was rejected/ignored");
     }
@@ -162,7 +155,7 @@ public sealed class TappablesManager
                     Tappable[]? tappables;
                     try
                     {
-                        tappables = JsonConvert.DeserializeObject<Tappable[]>(@event.data);
+                        tappables = Json.Deserialize<Tappable[]>(@event.data);
                     }
                     catch (Exception ex)
                     {
@@ -191,7 +184,7 @@ public sealed class TappablesManager
 
                     try
                     {
-                        encounters = JsonConvert.DeserializeObject<Encounter[]>(@event.data);
+                        encounters = Json.Deserialize<Encounter[]>(@event.data);
                     }
                     catch (Exception exception)
                     {
@@ -259,31 +252,21 @@ public sealed class TappablesManager
     }
 
     public static string locationToTileId(float lat, float lon)
-    {
-        return $"{xToTile(lonToX(lon))}_{yToTile(latToY(lat))}";
-    }
+        => $"{xToTile(lonToX(lon))}_{yToTile(latToY(lat))}";
 
     private static double lonToX(double lon)
-    {
-        return (1.0 + MathE.ToRadians(lon) / Math.PI) / 2.0;
-    }
+        => (1.0 + MathE.ToRadians(lon) / Math.PI) / 2.0;
 
     private static double latToY(double lat)
-    {
-        return (1.0 - Math.Log(Math.Tan(MathE.ToRadians(lat)) + 1.0 / Math.Cos(MathE.ToRadians(lat))) / Math.PI) / 2.0;
-    }
+        => (1.0 - Math.Log(Math.Tan(MathE.ToRadians(lat)) + 1.0 / Math.Cos(MathE.ToRadians(lat))) / Math.PI) / 2.0;
 
     private static int xToTile(double x)
-    {
-        return (int)Math.Floor(x * (1 << 16));
-    }
+        => (int)Math.Floor(x * (1 << 16));
 
     private static int yToTile(double y)
-    {
-        return (int)Math.Floor(y * (1 << 16));
-    }
+        => (int)Math.Floor(y * (1 << 16));
 
-    public record Tappable(
+    public sealed record Tappable(
         string id,
         float lat,
         float lon,
@@ -294,7 +277,7 @@ public sealed class TappablesManager
         Tappable.Item[] items
     )
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Rarity
         {
             COMMON,
@@ -321,7 +304,7 @@ public sealed class TappablesManager
         string encounterBuildplateId
     )
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Rarity
         {
             COMMON,

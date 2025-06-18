@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
 
-public record UnlockPrice(
+public sealed record UnlockPrice(
     int cost,
     int discount
-)
-{
-}
+);

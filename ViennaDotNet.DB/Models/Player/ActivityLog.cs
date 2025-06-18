@@ -1,54 +1,51 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Common;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class ActivityLog
 {
-    [JsonProperty]
-    private readonly LinkedList<Entry> entries;
+    [JsonInclude, JsonPropertyName("entries")]
+    public readonly LinkedList<Entry> _entries;
 
     public ActivityLog()
     {
-        entries = new();
+        _entries = new();
     }
 
     public ActivityLog copy()
     {
         ActivityLog activityLog = new ActivityLog();
-        activityLog.entries.AddRange(entries);
+        activityLog._entries.AddRange(_entries);
         return activityLog;
     }
 
     public Entry[] getEntries()
     {
-        return [.. entries];
+        return [.. _entries];
     }
 
     public void addEntry(Entry entry)
     {
-        entries.AddLast(entry);
+        _entries.AddLast(entry);
     }
 
     public void prune()
     {
         // it is widely known that the activity log is length limited but there is only ONE person who has stated how long it was limited to and apparently it is 40 entires
-        while (entries.Count > 40)
+        while (_entries.Count > 40)
         {
-            entries.RemoveFirst();
+            _entries.RemoveFirst();
         }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
     public abstract class Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly long timestamp;
-        [JsonProperty]
+        [JsonInclude]
         public readonly Type type;
 
         protected Entry(long timestamp, Type type)
@@ -57,7 +54,7 @@ public sealed class ActivityLog
             this.type = type;
         }
 
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Type
         {
             LEVEL_UP,
@@ -68,46 +65,43 @@ public sealed class ActivityLog
             BOOST_ACTIVATED,
         }
 
-        public class EntryConverter : JsonConverter<Entry>
+        public sealed class EntryConverter : JsonConverter<Entry>
         {
-            public override bool CanRead => true;
-            public override bool CanWrite => false;
-
-            public override Entry? ReadJson(JsonReader reader, System.Type objectType, Entry? existingValue, bool hasExistingValue, JsonSerializer serializer)
+            public override Entry? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
             {
-                JObject jsonObject = JObject.Load(reader);
-                var type = jsonObject[nameof(Entry.type)]?.ToObject<Type>();
-
-                switch (type)
+                using (JsonDocument document = JsonDocument.ParseValue(ref reader))
                 {
-                    case Type.LEVEL_UP:
-                        return jsonObject.ToObject<LevelUpEntry>();
-                    case Type.TAPPABLE:
-                        return jsonObject.ToObject<TappableEntry>();
-                    case Type.JOURNAL_ITEM_UNLOCKED:
-                        return jsonObject.ToObject<JournalItemUnlockedEntry>();
-                    case Type.CRAFTING_COMPLETED:
-                        return jsonObject.ToObject<CraftingCompletedEntry>();
-                    case Type.SMELTING_COMPLETED:
-                        return jsonObject.ToObject<SmeltingCompletedEntry>();
-                    case Type.BOOST_ACTIVATED:
-                        return jsonObject.ToObject<BoostActivatedEntry>();
-                    default:
-                        throw new JsonSerializationException("Invalid token type.");
+                    JsonElement root = document.RootElement;
+
+                    if (!root.TryGetProperty("type", out JsonElement typeElement) ||
+                        !Enum.TryParse<Type>(typeElement.GetString(), out var type))
+                    {
+                        throw new JsonException("Invalid or missing type property.");
+                    }
+
+                    string json = root.GetRawText();
+
+                    return type switch
+                    {
+                        Entry.Type.LEVEL_UP => JsonSerializer.Deserialize<LevelUpEntry>(json, options),
+                        Entry.Type.TAPPABLE => JsonSerializer.Deserialize<TappableEntry>(json, options),
+                        Entry.Type.JOURNAL_ITEM_UNLOCKED => JsonSerializer.Deserialize<JournalItemUnlockedEntry>(json, options),
+                        Entry.Type.CRAFTING_COMPLETED => JsonSerializer.Deserialize<CraftingCompletedEntry>(json, options),
+                        Entry.Type.SMELTING_COMPLETED => JsonSerializer.Deserialize<SmeltingCompletedEntry>(json, options),
+                        Entry.Type.BOOST_ACTIVATED => JsonSerializer.Deserialize<BoostActivatedEntry>(json, options),
+                        _ => throw new JsonException("Invalid entry type."),
+                    };
                 }
             }
 
-            public override void WriteJson(JsonWriter writer, Entry? value, JsonSerializer serializer)
-            {
-                throw new NotImplementedException();
-            }
+            public override void Write(Utf8JsonWriter writer, Entry value, JsonSerializerOptions options)
+                => throw new NotImplementedException("Serialization is not implemented.");
         }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
     public sealed class LevelUpEntry : Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly int level;
 
         public LevelUpEntry(long timestamp, int level)
@@ -117,10 +111,9 @@ public sealed class ActivityLog
         }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
     public sealed class TappableEntry : Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly Rewards rewards;
 
         public TappableEntry(long timestamp, Rewards rewards)
@@ -129,11 +122,10 @@ public sealed class ActivityLog
             this.rewards = rewards;
         }
     }
-    [JsonObject(MemberSerialization.OptIn)]
 
     public sealed class JournalItemUnlockedEntry : Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly string itemId;
 
         public JournalItemUnlockedEntry(long timestamp, string itemId)
@@ -143,10 +135,9 @@ public sealed class ActivityLog
         }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
     public sealed class CraftingCompletedEntry : Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly Rewards rewards;
 
         public CraftingCompletedEntry(long timestamp, Rewards rewards)
@@ -156,10 +147,9 @@ public sealed class ActivityLog
         }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
     public sealed class SmeltingCompletedEntry : Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly Rewards rewards;
 
         public SmeltingCompletedEntry(long timestamp, Rewards rewards)
@@ -169,10 +159,9 @@ public sealed class ActivityLog
         }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
     public sealed class BoostActivatedEntry : Entry
     {
-        [JsonProperty]
+        [JsonInclude]
         public readonly string itemId;
 
         public BoostActivatedEntry(long timestamp, string itemId)

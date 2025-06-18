@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.PreviewGenerator.Registry;
 
@@ -114,7 +114,7 @@ public static class Generator
             []
         );
 
-        return JsonConvert.SerializeObject(previewModel);
+        return Json.Serialize(previewModel);
         //} catch (Exception ex) { }
     }
 }

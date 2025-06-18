@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Common;
 
-public record BurnRate(
+public sealed record BurnRate(
     int burnTime,
     int heatPerSecond
-)
-{
-}
+);

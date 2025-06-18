@@ -1,12 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Global;
 
 public sealed class EncounterBuildplates
 {
-    [JsonProperty]
-    private readonly Dictionary<string, EncounterBuildplate> encounterBuildplates = [];
+    [JsonInclude, JsonPropertyName("encounterBuildplates")]
+    public readonly Dictionary<string, EncounterBuildplate> _encounterBuildplates = [];
 
     public EncounterBuildplates()
     {
@@ -14,7 +14,7 @@ public sealed class EncounterBuildplates
 
     public EncounterBuildplate? getEncounterBuildplate(string id)
     {
-        return encounterBuildplates.GetOrDefault(id);
+        return _encounterBuildplates.GetOrDefault(id);
     }
 
     public sealed class EncounterBuildplate

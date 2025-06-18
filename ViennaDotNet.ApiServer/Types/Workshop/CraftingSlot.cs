@@ -1,6 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Workshop;
 
-public record CraftingSlot(
+public sealed record CraftingSlot(
     string? sessionId,
     string? recipeId,
     OutputItem? output,
@@ -14,6 +14,4 @@ public record CraftingSlot(
     BoostState? boostState,
     UnlockPrice? unlockPrice,
     int streamVersion
-)
-{
-}
+);

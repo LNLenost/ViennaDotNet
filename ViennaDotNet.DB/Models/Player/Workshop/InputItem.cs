@@ -2,10 +2,8 @@
 
 namespace ViennaDotNet.DB.Models.Player.Workshop;
 
-public record InputItem(
+public sealed record InputItem(
      string id,
      int count,
      NonStackableItemInstance[] instances
-)
-{
-}
+);

@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
+using System.Diagnostics;
+using System.Text.Json;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Excceptions;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Player;
@@ -8,21 +10,30 @@ namespace ViennaDotNet.DB;
 
 public sealed class EarthDB : IDisposable
 {
+    private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private const int TRANSACTION_TIMEOUT = 60;
 
     public static EarthDB Open(string connectionString)
-    {
-        return new EarthDB(connectionString);
-    }
+        => new EarthDB(connectionString);
 
-    private string connectionString;
-    private HashSet<SqliteTransaction> transactions = [];
+    private readonly string connectionString;
+    private readonly HashSet<SqliteTransaction> transactions = [];
 
 #if NET9_0_OR_GREATER
     private readonly Lock _lock = new();
 #else
     private readonly object _lock = new();
 #endif
+
+    static EarthDB()
+    {
+        jsonOptions.Converters.Add(new Tokens.TokenConverter());
+        jsonOptions.Converters.Add(new ActivityLog.Entry.EntryConverter());
+    }
 
     private EarthDB(string _connectionString)
     {
@@ -154,19 +165,13 @@ public sealed class EarthDB : IDisposable
         }
 
         public Query Then(Func<Results, Query> function)
-        {
-            return Then(function, true);
-        }
+            => Then(function, true);
 
-        public Query Then(Query query, bool replaceResults)
-        {
-            return Then(results => query, replaceResults);
-        }
+        public Query Then(Query query, bool replaceResults) 
+            => Then(results => query, replaceResults);
 
-        public Query Then(Query query)
-        {
-            return Then(query, true);
-        }
+        public Query Then(Query query) 
+            => Then(query, true);
         #endregion
 
         public async Task<Results> ExecuteAsync(EarthDB earthDB, CancellationToken cancellationToken = default)
@@ -310,6 +315,7 @@ public sealed class EarthDB : IDisposable
                         command.Parameters.AddWithValue("$json", json);
                         await command.ExecuteNonQueryAsync(cancellationToken);
                     }
+
                     resultVersion = 2;
                 }
 
@@ -331,7 +337,8 @@ public sealed class EarthDB : IDisposable
                         {
                             string json = reader.GetString(0);
                             int version = reader.GetInt32(1);
-                            object value = fromJson(json, entry.valueType);
+                            object? value = fromJson(json, entry.valueType);
+                            Debug.Assert(value is not null);
                             results.getValues[entry.type] = new Results.Result(value, version);
                         }
                         else
@@ -476,7 +483,8 @@ public sealed class EarthDB : IDisposable
                         {
                             string json = reader.GetString(0);
                             int version = reader.GetInt32(1);
-                            object value = fromJson(json, entry.valueType);
+                            object? value = fromJson(json, entry.valueType);
+                            Debug.Assert(value is not null);
                             results.getValues[entry.type] = new Results.Result(value, version);
                         }
                         else
@@ -556,19 +564,13 @@ public sealed class EarthDB : IDisposable
         }
 
         public TileQuery Then(Func<TileResults, TileQuery> function)
-        {
-            return Then(function, true);
-        }
+            => Then(function, true);
 
         public TileQuery Then(TileQuery query, bool replaceResults)
-        {
-            return Then(results => query, replaceResults);
-        }
+            => Then(results => query, replaceResults);
 
         public TileQuery Then(TileQuery query)
-        {
-            return Then(query, true);
-        }
+            => Then(query, true);
         #endregion
 
         public async Task<TileResults> ExecuteAsync(EarthDB earthDB, CancellationToken cancellationToken = default)
@@ -735,21 +737,18 @@ public sealed class EarthDB : IDisposable
         }
     }
 
-    private static object fromJson(string json, Type valueType)
-    {
-        return JsonConvert.DeserializeObject(json, valueType, new Tokens.TokenConverter(), new ActivityLog.Entry.EntryConverter());
-    }
+    private static object? fromJson(string json, Type valueType)
+        => Json.Deserialize(json, valueType, jsonOptions);
 
     private static string toJson(object value)
-    {
-        return JsonConvert.SerializeObject(value);
-    }
+        => Json.Serialize(value);
 
     private static object createNewInstance(Type valueType)
     {
         try
         {
             object? value = Activator.CreateInstance(valueType);
+            Debug.Assert(value is not null);
             return value;
         }
         catch (/*ReflectiveOperationException*/Exception exception)

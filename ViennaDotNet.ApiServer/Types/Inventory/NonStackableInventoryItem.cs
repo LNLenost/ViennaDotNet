@@ -1,6 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Inventory;
 
-public record NonStackableInventoryItem(
+public sealed record NonStackableInventoryItem(
     string id,
     NonStackableInventoryItem.Instance[] instances,
     int fragments,
@@ -8,16 +8,12 @@ public record NonStackableInventoryItem(
     NonStackableInventoryItem.On seen
 )
 {
-    public record Instance(
+    public sealed record Instance(
         string id,
         float health
-    )
-    {
-    }
+    );
 
-    public record On(
+    public sealed record On(
         string on
-    )
-    {
-    }
+    );
 }

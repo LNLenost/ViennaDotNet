@@ -1,16 +1,17 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Serilog;
+﻿using Serilog;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ViennaDotNet.Common;
 
 namespace ViennaDotNet.PreviewGenerator.Utils;
 
 public static class DataFile
 {
-    public static void Load(string path, Action<JToken> consumer)
+    public static void Load(string path, Action<JsonNode> consumer)
     {
         try
         {
-            consumer(JsonConvert.DeserializeObject<JToken>(File.ReadAllText(path))!);
+            consumer(Json.Deserialize<JsonNode>(File.ReadAllText(path))!);
         }
         catch (Exception ex)
         {

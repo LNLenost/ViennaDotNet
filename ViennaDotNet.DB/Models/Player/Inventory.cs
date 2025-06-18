@@ -1,121 +1,117 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Common;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class Inventory
 {
-    [JsonProperty]
-    private Dictionary<string, int?> stackableItems;
-    [JsonProperty]
-    private Dictionary<string, Dictionary<string, NonStackableItemInstance>> nonStackableItems;
+    [JsonInclude, JsonPropertyName("stackableItems")]
+    public Dictionary<string, int?> _stackableItems;
+    [JsonInclude, JsonPropertyName("nonStackableItems")]
+    public Dictionary<string, Dictionary<string, NonStackableItemInstance>> _nonStackableItems;
 
     public Inventory()
     {
-        stackableItems = [];
-        nonStackableItems = [];
+        _stackableItems = [];
+        _nonStackableItems = [];
     }
 
     public Inventory copy()
     {
         Inventory inventory = new Inventory();
-        inventory.stackableItems.AddRange(stackableItems);
+        inventory._stackableItems.AddRange(_stackableItems);
         Dictionary<string, Dictionary<string, NonStackableItemInstance>> nonStackableItems = [];
-        this.nonStackableItems.ForEach((id, instances) => nonStackableItems.Add(id, new Dictionary<string, NonStackableItemInstance>(instances)));
-        inventory.nonStackableItems.AddRange(nonStackableItems);
+        _nonStackableItems.ForEach((id, instances) => nonStackableItems.Add(id, new Dictionary<string, NonStackableItemInstance>(instances)));
+        inventory._nonStackableItems.AddRange(nonStackableItems);
         return inventory;
     }
 
-    public record StackableItem(
+    public sealed record StackableItem(
         string id,
         int? count
-    )
-    {
-    }
+    );
 
-    public StackableItem[] getStackableItems()
-    {
-        return [.. stackableItems.Select(item => new StackableItem(item.Key, item.Value))];
-    }
+    public StackableItem[] getStackableItems() 
+        => [.. _stackableItems.Select(item => new StackableItem(item.Key, item.Value))];
 
-    public record NonStackableItem(
+    public sealed record NonStackableItem(
         string id,
         NonStackableItemInstance[] instances
-    )
-    {
-    }
+    );
 
-    public NonStackableItem[] getNonStackableItems()
-    {
-        return [.. nonStackableItems.Select(item => new NonStackableItem(item.Key, [.. item.Value.Values]))];
-    }
+    public NonStackableItem[] getNonStackableItems() 
+        => [.. _nonStackableItems.Select(item => new NonStackableItem(item.Key, [.. item.Value.Values]))];
 
     public int getItemCount(string id)
     {
-        int? count = stackableItems.GetOrDefault(id, null);
-        if (count != null)
+        int? count = _stackableItems.GetOrDefault(id, null);
+        if (count is not null)
+        {
             return count.Value;
+        }
 
-        Dictionary<string, NonStackableItemInstance>? instances = nonStackableItems!.GetOrDefault(id, null);
+        Dictionary<string, NonStackableItemInstance>? instances = _nonStackableItems!.GetOrDefault(id, null);
 
-        if (instances != null)
-            return instances.Count;
-
-        return 0;
+        return instances is not null 
+            ? instances.Count 
+            : 0;
     }
 
     public NonStackableItemInstance[] getItemInstances(string id)
     {
-        Dictionary<string, NonStackableItemInstance>? instances = nonStackableItems!.GetOrDefault(id, null);
-        if (instances != null)
-            return [.. instances.Values];
-
-        return [];
+        Dictionary<string, NonStackableItemInstance>? instances = _nonStackableItems!.GetOrDefault(id, null);
+        return instances is not null 
+            ? [.. instances.Values] 
+            : [];
     }
 
     public NonStackableItemInstance? getItemInstance(string id, string instanceId)
     {
-        Dictionary<string, NonStackableItemInstance>? instances = nonStackableItems!.GetOrDefault(id, null);
-        if (instances != null)
-            return instances.GetOrDefault(instanceId, null);
-
-        return null;
+        Dictionary<string, NonStackableItemInstance>? instances = _nonStackableItems!.GetOrDefault(id, null);
+        return instances?.GetOrDefault(instanceId, null);
     }
 
     public void addItems(string id, int count)
     {
         if (count < 0)
+        {
             throw new ArgumentException(nameof(count));
+        }
 
-        stackableItems[id] = stackableItems.GetOrDefault(id, 0) + count;
+        _stackableItems[id] = _stackableItems.GetOrDefault(id, 0) + count;
     }
 
     public void addItems(string id, NonStackableItemInstance[] instances)
     {
-        Dictionary<string, NonStackableItemInstance> instancesMap = nonStackableItems.ComputeIfAbsent(id, id1 => [])!;
+        Dictionary<string, NonStackableItemInstance> instancesMap = _nonStackableItems.ComputeIfAbsent(id, id1 => [])!;
 
         foreach (NonStackableItemInstance instance in instances)
+        {
             instancesMap.Add(instance.instanceId, instance);
+        }
     }
 
     public bool takeItems(string id, int count)
     {
         if (count < 0)
+        {
             throw new ArgumentException(nameof(count));
+        }
 
-        int currentCount = stackableItems.GetOrDefault(id, 0)!.Value;
+        int currentCount = _stackableItems.GetOrDefault(id, 0)!.Value;
         if (currentCount < count)
+        {
             return false;
+        }
 
-        stackableItems[id] = currentCount - count;
+        _stackableItems[id] = currentCount - count;
         return true;
     }
 
     public NonStackableItemInstance[]? takeItems(string id, string[] instanceIds)
     {
-        Dictionary<string, NonStackableItemInstance>? instanceMap = nonStackableItems.GetValueOrDefault(id);
+        Dictionary<string, NonStackableItemInstance>? instanceMap = _nonStackableItems.GetValueOrDefault(id);
         if (instanceMap is null)
         {
             return null;

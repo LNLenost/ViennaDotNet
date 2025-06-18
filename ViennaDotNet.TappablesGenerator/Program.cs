@@ -11,7 +11,7 @@ internal static class Program
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     private sealed class Options
     {
-        [Option("dir", Default = "./data", Required = false, HelpText = "Static data path")]
+        [Option("dir", Default = "./staticdata", Required = false, HelpText = "Static data path")]
         public string StaticDataPath { get; set; }
 
         [Option("eventbus", Default = "localhost:5532", Required = false, HelpText = "Event bus address")]

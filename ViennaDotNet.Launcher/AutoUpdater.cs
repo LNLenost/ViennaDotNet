@@ -1,11 +1,12 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Serilog;
+﻿using Serilog;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ViennaDotNet.Common;
 
 namespace ViennaDotNet.Launcher;
 
@@ -26,7 +27,7 @@ internal static class AutoUpdater
         Log.Information($"Current version: {currentVersion}");
         Log.Information("Getting new version");
 
-        JObject? releaseInfo;
+        JsonObject? releaseInfo;
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repoOwner}/{repoName}/releases/latest");
@@ -41,7 +42,7 @@ internal static class AutoUpdater
                 return;
             }
 
-            releaseInfo = JsonConvert.DeserializeObject<JObject>(await response.Content.ReadAsStringAsync());
+            releaseInfo = Json.Deserialize<JsonObject>(await response.Content.ReadAsStringAsync());
 
             if (releaseInfo is null)
             {
@@ -58,7 +59,7 @@ internal static class AutoUpdater
         }
 
         string? tagName;
-        if (!releaseInfo.TryGetValue("tag_name", out JToken? tagNameToken) || tagNameToken.Type != JTokenType.String || string.IsNullOrEmpty(tagName = tagNameToken.ToObject<string>()))
+        if (!releaseInfo.TryGetPropertyValue("tag_name", out var tagNameToken) || tagNameToken!.GetValueKind() is not JsonValueKind.String || string.IsNullOrEmpty(tagName = tagNameToken.GetValue<string>()))
         {
             Log.Error("Invalid response");
             U.PAK();
@@ -66,8 +67,10 @@ internal static class AutoUpdater
         }
 
         tagName = tagName.Trim();
-        if (tagName.StartsWith("v"))
-            tagName = tagName.Substring(1);
+        if (tagName.StartsWith('v'))
+        {
+            tagName = tagName[1..];
+        }
 
         Version? newVersion;
         if (!Version.TryParse(tagName, out newVersion))
@@ -87,7 +90,7 @@ internal static class AutoUpdater
 
         try
         {
-            JArray? assets = releaseInfo["assets"] as JArray;
+            JsonArray? assets = releaseInfo["assets"] as JsonArray;
             if (assets is null)
             {
                 Log.Error("Invalid response");
@@ -110,39 +113,28 @@ internal static class AutoUpdater
                     return;
             }
 
-            string architecture;
-            switch (RuntimeInformation.OSArchitecture)
+            string architecture = RuntimeInformation.OSArchitecture switch
             {
-                case Architecture.X64:
-                    architecture = "x64";
-                    break;
-                case Architecture.X86:
-                    architecture = "x86";
-                    break;
-                case Architecture.Arm:
-                case Architecture.Armv6:
-                    architecture = "arm";
-                    break;
-                case Architecture.Arm64:
-                    architecture = "arm64";
-                    break;
-                default:
-                    architecture = Environment.Is64BitOperatingSystem ? "x64" : "x86";
-                    break;
-            }
-
+                Architecture.X64 => "x64",
+                Architecture.X86 => "x86",
+                Architecture.Arm or Architecture.Armv6 => "arm",
+                Architecture.Arm64 => "arm64",
+                _ => Environment.Is64BitOperatingSystem ? "x64" : "x86",
+            };
             string lookFor = (os + "-" + architecture).ToLowerInvariant();
 
-            JObject? compatibleAsset = null;
+            JsonObject? compatibleAsset = null;
             foreach (var assetToken in assets)
             {
-                var asset = assetToken as JObject;
+                var asset = assetToken as JsonObject;
 
                 string? name;
-                if (asset is null || !asset.TryGetValue("name", out JToken? nameToken) || nameToken.Type != JTokenType.String || string.IsNullOrEmpty(name = nameToken.ToObject<string>()))
+                if (asset is null || !asset.TryGetPropertyValue("name", out var nameToken) || nameToken!.GetValueKind() != JsonValueKind.String || string.IsNullOrEmpty(name = nameToken.GetValue<string>()))
+                {
                     continue;
+                }
 
-                if (name.ToLowerInvariant().Contains(lookFor) && asset.ContainsKey("browser_download_url"))
+                if (name.Contains(lookFor, StringComparison.OrdinalIgnoreCase) && asset.ContainsKey("browser_download_url"))
                 {
                     compatibleAsset = asset;
                     break;
@@ -158,7 +150,7 @@ internal static class AutoUpdater
 
             Log.Information("Downloading new release");
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, compatibleAsset["browser_download_url"]!.ToObject<string>());
+            using var request = new HttpRequestMessage(HttpMethod.Get, compatibleAsset["browser_download_url"]!.GetValue<string>());
             request.Headers.Add("User-Agent", "request");
 
             using var response = await client.SendAsync(request);

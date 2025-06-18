@@ -1,12 +1,11 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class Hotbar
 {
-    [JsonProperty]
+    [JsonInclude]
     public Item?[] items;
 
     public Hotbar()

@@ -1,52 +1,47 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Common;
 
 namespace ViennaDotNet.DB.Models.Player;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class Tokens
 {
-    [JsonProperty]
-    private readonly Dictionary<string, Token> tokens;
+    [JsonInclude, JsonPropertyName("tokens")]
+    public readonly Dictionary<string, Token> _tokens;
 
     public Tokens()
     {
-        tokens = [];
+        _tokens = [];
     }
 
     public Tokens copy()
     {
         Tokens tokens = new Tokens();
-        tokens.tokens.AddRange(this.tokens);
+        tokens._tokens.AddRange(_tokens);
         return tokens;
     }
 
-    public record TokenWithId(
+    public sealed record TokenWithId(
         string id,
         Token token
-    )
-    {
-    }
+    );
 
-    public TokenWithId[] getTokens()
-    {
-        return [.. tokens.Select(item => new TokenWithId(item.Key, item.Value))];
-    }
+    public TokenWithId[] getTokens() 
+        => [.. _tokens.Select(item => new TokenWithId(item.Key, item.Value))];
 
     public void addToken(string id, Token token)
-    {
-        tokens[id] = token;
-    }
+        => _tokens[id] = token;
 
     public Token? removeToken(string id)
     {
         Token? res = null;
-        if (tokens.TryGetValue(id, out Token? t))
+        if (_tokens.TryGetValue(id, out Token? t))
+        {
             res = t;
+        }
 
-        tokens.Remove(id);
+        _tokens.Remove(id);
 
         return res;
     }
@@ -67,48 +62,53 @@ public sealed class Tokens
         }
     }
 
-    public class TokenConverter : JsonConverter<Token>
+    public sealed class TokenConverter : JsonConverter<Token>
     {
-        public override bool CanRead => true;
-        public override bool CanWrite => false;
-
-        public override Token? ReadJson(JsonReader reader, System.Type objectType, Token? existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override Token? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var jsonObject = JObject.Load(reader);
-            var type = jsonObject[nameof(Token.type)]?.ToObject<Token.Type>();
-
-            switch (type)
+            using (JsonDocument document = JsonDocument.ParseValue(ref reader))
             {
-                case Token.Type.LEVEL_UP:
-                    return jsonObject.ToObject<LevelUpToken>();
-                case Token.Type.JOURNAL_ITEM_UNLOCKED:
-                    return jsonObject.ToObject<JournalItemUnlockedToken>();
-                default:
-                    throw new JsonSerializationException($"Unexpected token type: {type}");
+                JsonElement root = document.RootElement;
+
+                if (!root.TryGetProperty("type", out JsonElement typeElement) ||
+                    !Enum.TryParse<Token.Type>(typeElement.GetString(), out var type))
+                {
+                    throw new JsonException("Invalid or missing type property.");
+                }
+
+                string json = root.GetRawText();
+
+                return type switch
+                {
+                    Token.Type.LEVEL_UP => JsonSerializer.Deserialize<LevelUpToken>(json, options),
+                    Token.Type.JOURNAL_ITEM_UNLOCKED => JsonSerializer.Deserialize<JournalItemUnlockedToken>(json, options),
+                    _ => throw new JsonException($"Unexpected token type: {type}")
+                };
             }
         }
 
-        public override void WriteJson(JsonWriter writer, Token? value, JsonSerializer serializer)
-        {
-            throw new NotImplementedException();
-        }
+        public override void Write(Utf8JsonWriter writer, Token value, JsonSerializerOptions options)
+            => throw new NotImplementedException("Serialization is not implemented.");
     }
 
-    [JsonObject(MemberSerialization.Fields)]
     public class LevelUpToken : Token
     {
+        [JsonInclude]
         public readonly int level;
+        [JsonInclude]
         public readonly Rewards rewards;
 
         public LevelUpToken(int level, Rewards rewards)
             : base(Type.LEVEL_UP)
         {
             this.level = level;
+            this.rewards = rewards;
         }
     }
 
     public class JournalItemUnlockedToken : Token
     {
+        [JsonInclude]
         public readonly string itemId;
 
         public JournalItemUnlockedToken(string itemId)

@@ -1,10 +1,8 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Buildplates;
 
-public record OwnedBuildplate(
+public sealed record OwnedBuildplate(
     string id,
     string templateId,
     Dimension dimension,
@@ -22,9 +20,9 @@ public record OwnedBuildplate(
     string eTag
 )
 {
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum Type
     {
-        [EnumMember(Value = "Survival")] SURVIVAL
+        [JsonStringEnumMemberName("Survival")] SURVIVAL
     }
 }

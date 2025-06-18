@@ -1,5 +1,7 @@
-﻿using Newtonsoft.Json.Linq;
-using Serilog;
+﻿using Serilog;
+using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.PreviewGenerator.NBT;
 using ViennaDotNet.PreviewGenerator.Utils;
@@ -19,13 +21,15 @@ public static class JavaBlocks
     {
         DataFile.Load("./registry/blocks_java.json", jToken =>
         {
-            JArray jArray = (JArray)jToken;
+            JsonArray jArray = (JsonArray)jToken;
 
             foreach (var _element in jArray)
             {
-                JObject element = (JObject)_element;
-                int id = element["id"]!.ToObject<int>();
-                string name = element["name"]!.ToObject<string>()!;
+                JsonObject? element = _element as JsonObject;
+                Debug.Assert(element is not null);
+
+                int id = element["id"]!.GetValue<int>();
+                string name = element["name"]!.GetValue<string>()!;
                 if (map.ContainsKey(id))
                     Log.Warning($"Duplicate Java block ID {id}");
                 else
@@ -33,7 +37,7 @@ public static class JavaBlocks
 
                 try
                 {
-                    BedrockMapping? bedrockMapping = readBedrockMapping((JObject)element["bedrock"]!, jArray);
+                    BedrockMapping? bedrockMapping = readBedrockMapping((JsonObject)element["bedrock"]!, jArray);
                     if (bedrockMapping == null)
                     {
                         Log.Debug($"Ignoring Java block {name}");
@@ -52,28 +56,30 @@ public static class JavaBlocks
 
         DataFile.Load("./registry/blocks_java_nonvanilla.json", jToken =>
         {
-            JArray jArray = (JArray)jToken;
+            JsonArray jArray = (JsonArray)jToken;
 
             foreach (var _element in jArray)
             {
-                JObject element = (JObject)_element;
+                JsonObject? element = _element as JsonObject;
+                Debug.Assert(element is not null);
 
-                string baseName = element["name"]!.ToObject<string>()!;
+                string baseName = element["name"]!.GetValue<string>()!;
 
                 LinkedList<string> stateNames = new();
-                JArray statesArray = (JArray)element["states"]!;
+                JsonArray statesArray = (JsonArray)element["states"]!;
                 foreach (var _stateElement in statesArray)
                 {
-                    JObject stateElement = (JObject)_stateElement;
+                    JsonObject? stateElement = _stateElement as JsonObject;
+                    Debug.Assert(stateElement is not null);
 
-                    string stateName = stateElement["name"]!.ToObject<string>()!;
+                    string stateName = stateElement["name"]!.GetValue<string>()!;
                     stateNames.AddLast(stateName);
 
                     string name = baseName + stateName;
 
                     try
                     {
-                        BedrockMapping? bedrockMapping = readBedrockMapping((JObject)stateElement["bedrock"]!, null);
+                        BedrockMapping? bedrockMapping = readBedrockMapping((JsonObject)stateElement["bedrock"]!, null);
                         if (bedrockMapping == null)
                         {
                             Log.Debug($"Ignoring Java block {name}");
@@ -96,45 +102,55 @@ public static class JavaBlocks
         });
     }
 
-    private static BedrockMapping? readBedrockMapping(JObject bedrockMappingObject, JArray? javaBlocksArray)
+    private static BedrockMapping? readBedrockMapping(JsonObject bedrockMappingObject, JsonArray? javaBlocksArray)
     {
-        if (bedrockMappingObject.TryGetValue("ignore", out JToken? ignoreToken) && ignoreToken.ToObject<bool>())
+        if (bedrockMappingObject.TryGetPropertyValue("ignore", out var ignoreToken) && ignoreToken!.GetValue<bool>())
             return null;
 
-        string name = bedrockMappingObject["name"]!.ToObject<string>()!;
+        string name = bedrockMappingObject["name"]!.GetValue<string>()!;
 
         SortedDictionary<string, object> state = [];
-        if (bedrockMappingObject.TryGetValue("state", out JToken? stateToken))
+        if (bedrockMappingObject.TryGetPropertyValue("state", out var stateToken))
         {
-            JObject stateObject = (JObject)stateToken;
+            JsonObject? stateObject = stateToken as JsonObject;
+            Debug.Assert(stateObject is not null);
+
             foreach (var entry in stateObject)
             {
-                JToken stateElement = entry.Value!;
-                if (stateElement.Type == JTokenType.String)
-                    state[entry.Key] = stateElement.ToObject<string>()!;
-                else if (stateElement.Type == JTokenType.Boolean)
-                    state[entry.Key] = stateElement.ToObject<bool>() ? 1 : 0;
+                JsonValue? stateElement = entry.Value as JsonValue;
+                Debug.Assert(stateElement is not null);
+                var stateElementType = stateElement.GetValueKind();
+                if (stateElementType == JsonValueKind.String)
+                    state[entry.Key] = stateElement.GetValue<string>()!;
+                else if (stateElementType == JsonValueKind.True)
+                    state[entry.Key] = 1;
+                else if (stateElementType == JsonValueKind.False)
+                    state[entry.Key] = 0;
                 else
-                    state[entry.Key] = stateElement.ToObject<int>();
+                    state[entry.Key] = stateElement.GetValue<int>();
             }
         }
 
         int id = BedrockBlocks.getId(name, state);
         if (id == -1)
+        {
             throw new BedrockMappingFailException("Cannot find Bedrock block with provided name and state");
+        }
 
-        bool waterlogged = bedrockMappingObject.TryGetValue("waterlogged", out JToken? waterloggedToken) && waterloggedToken.ToObject<bool>();
+        bool waterlogged = bedrockMappingObject.TryGetPropertyValue("waterlogged", out var waterloggedToken) && waterloggedToken!.GetValue<bool>();
 
         BedrockMapping.BlockEntity? blockEntity = null;
-        if (bedrockMappingObject.TryGetValue("block_entity", out JToken? blockEntityToken))
+        if (bedrockMappingObject.TryGetPropertyValue("block_entity", out var blockEntityToken))
         {
-            JObject blockEntityObject = (JObject)blockEntityToken;
-            string type = blockEntityObject["type"]!.ToObject<string>()!;
+            JsonObject? blockEntityObject = blockEntityToken as JsonObject;
+            Debug.Assert(blockEntityObject is not null);
+
+            string type = blockEntityObject["type"]!.GetValue<string>()!;
             switch (type)
             {
                 case "bed":
                     {
-                        string color = blockEntityObject["color"]!.ToObject<string>()!;
+                        string color = blockEntityObject["color"]!.GetValue<string>()!;
                         blockEntity = new BedrockMapping.BedBlockEntity(type, color);
                     }
 
@@ -142,36 +158,43 @@ public static class JavaBlocks
                 case "flower_pot":
                     {
                         NbtMap? contents = null;
-                        if (blockEntityObject.TryGetValue("contents", out JToken? contentsToken) && contentsToken.Type != JTokenType.Null)
+                        if (blockEntityObject.TryGetPropertyValue("contents", out var contentsToken) && contentsToken!.GetValueKind() is not JsonValueKind.Null)
                         {
-                            string contentsName = contentsToken.ToObject<string>()!;
+                            string contentsName = contentsToken.GetValue<string>()!;
                             if (javaBlocksArray != null)
                             {
                                 contents = javaBlocksArray
-                                    .Where(element => ((JObject)element)["name"]!.ToObject<string>() == contentsName)
-                                    .Select(element => (JObject)((JObject)element)["bedrock"]!)
-                                        .Where(element => !element.ContainsKey("ignore") || !element["ignore"]!.ToObject<bool>())
-                                        .FirstOrDefault()!.Map(element =>
-                                {
-                                    NbtMapBuilder builder = NbtMap.builder();
-                                    builder.putString("name", element["name"]!.ToObject<string>()!);
-                                    if (element.TryGetValue("state", out JToken? stateToken))
+                                    .Where(element => ((JsonObject)element!)["name"]!.GetValue<string>() == contentsName)
+                                    .Select(element => (JsonObject)((JsonObject)element!)["bedrock"]!)
+                                    .Where(element => !element.ContainsKey("ignore") || !element["ignore"]!.GetValue<bool>())
+                                    .FirstOrDefault()!.Map(element =>
                                     {
-                                        NbtMapBuilder stateBuilder = NbtMap.builder();
-                                        ((JObject)stateToken).ForEach((key, stateElement) =>
+                                        NbtMapBuilder builder = NbtMap.builder();
+                                        builder.putString("name", element["name"]!.GetValue<string>()!);
+                                        if (element.TryGetPropertyValue("state", out var stateToken))
                                         {
-                                            if (stateElement!.Type == JTokenType.String)
-                                                stateBuilder.putString(key, stateElement.ToObject<string>()!);
-                                            else if (stateElement.Type == JTokenType.Boolean)
-                                                stateBuilder.putInt(key, stateElement.ToObject<bool>() ? 1 : 0);
-                                            else
-                                                stateBuilder.putInt(key, stateElement.ToObject<int>());
-                                        });
-                                        builder.putCompound("states", stateBuilder.build());
-                                    }
+                                            Debug.Assert(stateToken is not null);
 
-                                    return builder.build();
-                                });
+                                            NbtMapBuilder stateBuilder = NbtMap.builder();
+                                            ((JsonObject)stateToken).ForEach((key, stateElement) =>
+                                            {
+                                                Debug.Assert(stateElement is not null);
+
+                                                var stateElementType = stateElement.GetValueKind();
+                                                if (stateElementType == JsonValueKind.String)
+                                                    stateBuilder.putString(key, stateElement.GetValue<string>()!);
+                                                else if (stateElementType == JsonValueKind.True)
+                                                    stateBuilder.putInt(key, 1);
+                                                else if (stateElementType == JsonValueKind.False)
+                                                    stateBuilder.putInt(key, 0);
+                                                else
+                                                    stateBuilder.putInt(key, stateElement.GetValue<int>());
+                                            });
+                                            builder.putCompound("states", stateBuilder.build());
+                                        }
+
+                                        return builder.build();
+                                    });
                             }
 
                             if (contents == null)
@@ -190,8 +213,8 @@ public static class JavaBlocks
                     break;
                 case "piston":
                     {
-                        bool sticky = blockEntityObject["sticky"]!.ToObject<bool>();
-                        bool extended = blockEntityObject["extended"]!.ToObject<bool>();
+                        bool sticky = blockEntityObject["sticky"]!.GetValue<bool>();
+                        bool extended = blockEntityObject["extended"]!.GetValue<bool>();
                         blockEntity = new BedrockMapping.PistonBlockEntity(type, sticky, extended);
                     }
 
@@ -200,15 +223,17 @@ public static class JavaBlocks
         }
 
         BedrockMapping.ExtraData? extraData = null;
-        if (bedrockMappingObject.TryGetValue("extra_data", out JToken? extra_dataToken))
+        if (bedrockMappingObject.TryGetPropertyValue("extra_data", out var extra_dataToken))
         {
-            JObject extraDataObject = (JObject)extra_dataToken;
-            string type = extraDataObject["type"]!.ToObject<string>()!;
+            JsonObject? extraDataObject = extra_dataToken as JsonObject;
+            Debug.Assert(extraDataObject is not null);
+
+            string type = extraDataObject["type"]!.GetValue<string>();
             switch (type)
             {
                 case "note_block":
                     {
-                        int pitch = extraDataObject["pitch"]!.ToObject<int>();
+                        int pitch = extraDataObject["pitch"]!.GetValue<int>();
                         extraData = new BedrockMapping.NoteBlockExtraData(pitch);
                     }
 

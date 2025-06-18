@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
+using ViennaDotNet.Common;
 using ViennaDotNet.DB;
 using ViennaDotNet.EventBus.Client;
 using ViennaDotNet.ObjectStore.Client;
@@ -30,7 +30,7 @@ internal static class TileUtils
 
         Log.Information("Generating preview");
         _requestSender ??= Program.eventBus.addRequestSender();
-        string? tilePng64 = await _requestSender.request("tile", "renderTile", JsonConvert.SerializeObject(new RenderTileRequest(tileX, tileY, 16))).Task;
+        string? tilePng64 = await _requestSender.request("tile", "renderTile", Json.Serialize(new RenderTileRequest(tileX, tileY, 16))).Task;
 
         if (tilePng64 is null)
         {

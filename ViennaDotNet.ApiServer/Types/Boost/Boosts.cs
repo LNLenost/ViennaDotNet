@@ -3,7 +3,7 @@
 namespace ViennaDotNet.ApiServer.Types.Boost;
 
 public sealed record Boosts(
-    Boosts.Potion[] potions,
+    Boosts.Potion?[] potions,
     Boosts.MiniFig[] miniFigs,
     Boosts.ActiveEffect[] activeEffects,
     Dictionary<string, Boosts.ScenarioBoost[]> scenarioBoosts,

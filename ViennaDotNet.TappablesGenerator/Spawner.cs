@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -149,12 +149,12 @@ public class Spawner
 
     private async Task sendSpawnedTappables(List<Tappable> tappables, List<Encounter> encounters)
     {
-        if (!await publisher.publish("tappables", "tappableSpawn", JsonConvert.SerializeObject(tappables)))
+        if (!await publisher.publish("tappables", "tappableSpawn", Json.Serialize(tappables)))
         {
             Log.Error("Event bus server rejected tappable spawn event");
         }
 
-        if (!await publisher.publish("tappables", "encounterSpawn", JsonConvert.SerializeObject(encounters)))
+        if (!await publisher.publish("tappables", "encounterSpawn", Json.Serialize(encounters)))
         {
             Log.Error("Event bus server rejected encounter spawn event");
         }

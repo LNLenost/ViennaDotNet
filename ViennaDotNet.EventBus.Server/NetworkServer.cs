@@ -203,18 +203,16 @@ public class NetworkServer
                             return null;
 
                         SubscriberChannel subscriberChannel = new SubscriberChannel(networkServer, this, channelId, parts[1]);
-                        if (!subscriberChannel.isValid())
-                            return null;
-
-                        return subscriberChannel;
+                        return !subscriberChannel.isValid() 
+                            ? null 
+                            : subscriberChannel;
                     }
                 case "REQ":
                     {
                         RequestSenderChannel requestSenderChannel = new RequestSenderChannel(this, channelId, networkServer);
-                        if (!requestSenderChannel.isValid())
-                            return null;
-
-                        return requestSenderChannel;
+                        return !requestSenderChannel.isValid() 
+                            ? null 
+                            : requestSenderChannel;
                     }
                 case "HND":
                     {
@@ -222,10 +220,9 @@ public class NetworkServer
                             return null;
 
                         RequestHandlerChannel requestHandlerChannel = new RequestHandlerChannel(this, channelId, parts[1], networkServer);
-                        if (!requestHandlerChannel.isValid())
-                            return null;
-
-                        return requestHandlerChannel;
+                        return !requestHandlerChannel.isValid() 
+                            ? null 
+                            : requestHandlerChannel;
                     }
                 default:
                     return null;
@@ -250,9 +247,7 @@ public class NetworkServer
         public abstract void handleClose();
 
         protected void sendMessage(string message)
-        {
-            connection.sendMessage(channelId.ToString() + " " + message);
-        }
+            => connection.sendMessage($"{channelId} {message}");
     }
 
     private sealed class PublisherChannel : Channel
@@ -261,7 +256,7 @@ public class NetworkServer
         private bool _error = false;
 
         public PublisherChannel(Connection connection, int channelId, NetworkServer networkServer)
-                : base(connection, channelId)
+            : base(connection, channelId)
         {
             publisher = networkServer.server.addPublisher();
         }
@@ -302,9 +297,7 @@ public class NetworkServer
         }
 
         public override void handleClose()
-        {
-            publisher.remove();
-        }
+            => publisher.remove();
 
         private void error()
         {
@@ -316,19 +309,17 @@ public class NetworkServer
     private sealed class SubscriberChannel : Channel
     {
         private readonly NetworkServer netServer;
-        private readonly Server.Subscriber subscriber;
+        private readonly Server.Subscriber? subscriber;
 
         public SubscriberChannel(NetworkServer _netServer, Connection connection, int channelId, string queueName)
                 : base(connection, channelId)
         {
             netServer = _netServer;
-            subscriber = netServer.server.addSubscriber(queueName, handleMessage)!;
+            subscriber = netServer.server.addSubscriber(queueName, handleMessage);
         }
 
         public override bool isValid()
-        {
-            return subscriber != null;
-        }
+            => subscriber is not null;
 
         public override void handleCommand(string command)
         {
@@ -336,9 +327,7 @@ public class NetworkServer
         }
 
         public override void handleClose()
-        {
-            subscriber.remove();
-        }
+            => subscriber?.remove();
 
         private void handleMessage(Server.Subscriber.Message message)
         {
@@ -346,9 +335,9 @@ public class NetworkServer
             {
                 StringBuilder stringBuilder = new StringBuilder();
                 stringBuilder.Append(entryMessage.timestamp);
-                stringBuilder.Append(":");
+                stringBuilder.Append(':');
                 stringBuilder.Append(entryMessage.type);
-                stringBuilder.Append(":");
+                stringBuilder.Append(':');
                 stringBuilder.Append(entryMessage.data);
                 sendMessage(stringBuilder.ToString());
             }
@@ -361,7 +350,7 @@ public class NetworkServer
     {
         private readonly Server.RequestSender requestSender;
         // TODO: should they be volatile?
-        private volatile TaskCompletionSource<string>? currentPendingResponse = null;
+        private volatile TaskCompletionSource<string?   >? currentPendingResponse = null;
         private volatile bool _error = false;
 
         public RequestSenderChannel(Connection connection, int channelId, NetworkServer networkServer)
@@ -371,9 +360,7 @@ public class NetworkServer
         }
 
         public override bool isValid()
-        {
-            return true;
-        }
+            => true;
 
         public override void handleCommand(string command)
         {
@@ -405,8 +392,8 @@ public class NetworkServer
                 string type = fields[1];
                 string data = fields[2];
 
-                TaskCompletionSource<string> completableFuture = requestSender.request(queueName, timestamp, type, data);
-                if (completableFuture != null)
+                TaskCompletionSource<string?>? completableFuture = requestSender.request(queueName, timestamp, type, data);
+                if (completableFuture is not null)
                 {
                     currentPendingResponse = completableFuture;
                     sendMessage("ACK");
@@ -456,13 +443,11 @@ public class NetworkServer
         public RequestHandlerChannel(Connection connection, int channelId, string queueName, NetworkServer networkServer)
             : base(connection, channelId)
         {
-            requestHandler = networkServer.server.addRequestHandler(queueName, this.handleRequest, this.handleError);
+            requestHandler = networkServer.server.addRequestHandler(queueName, handleRequest, handleError) ?? throw new ArgumentException($"{nameof(queueName)} is invalid.", nameof(queueName));
         }
 
         public override bool isValid()
-        {
-            return requestHandler != null;
-        }
+            => requestHandler is not null;
 
         public override void handleCommand(string command)
         {
@@ -557,9 +542,7 @@ public class NetworkServer
         }
 
         private void handleError(Server.RequestHandler.ErrorMessage errorMessage)
-        {
-            error();
-        }
+            => error();
 
         private void error()
         {

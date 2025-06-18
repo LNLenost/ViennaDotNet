@@ -1,8 +1,6 @@
 ﻿namespace ViennaDotNet.ApiServer.Types.Common;
 
-public record Coordinate(
+public sealed record Coordinate(
     float latitude,
     float longitude
-)
-{
-}
+);

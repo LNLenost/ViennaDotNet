@@ -7,12 +7,12 @@ using static ViennaDotNet.ApiServer.Types.Catalog.ItemsCatalog.Item.ItemData;
 
 namespace ViennaDotNet.ApiServer.Types.Catalog;
 
-public record ItemsCatalog(
+public sealed record ItemsCatalog(
     Item[] items,
     Dictionary<string, EfficiencyCategory> efficiencyCategories
 )
 {
-    public record Item(
+    public sealed record Item(
         string id,
         ItemData item,
         string category,
@@ -27,7 +27,7 @@ public record ItemsCatalog(
         bool deprecated
     )
     {
-        public record ItemData(
+        public sealed record ItemData(
             string name,
             int? aux,
             string type,
@@ -46,14 +46,12 @@ public record ItemsCatalog(
             IDictionary clientProperties
         )
         {
-            public record BlockMetadata(
+            public sealed record BlockMetadata(
                 double? health,
                 string? efficiencyCategory
-            )
-            {
-            }
+            );
 
-            public record ItemMetadata(
+            public sealed record ItemMetadata(
                 string useType,
                 string alternativeUseType,
                 double? mobDamage,
@@ -63,41 +61,33 @@ public record ItemsCatalog(
                 double? heal,
                 string? efficiencyType,
                 double? maxHealth
-            )
-            {
-            }
+            );
 
-            public record JournalMetadata(
+            public sealed record JournalMetadata(
                 string groupKey,
                 int experience,
                 int order,
                 string behavior,
                 string biome
-            )
-            {
-            }
+            );
 
-            public record AudioMetadata(
+            public sealed record AudioMetadata(
                 Dictionary<string, string> sounds,
                 string defaultSound
-            )
-            {
-            }
+            );
         }
 
-        public record ReturnItem(
+        public sealed record ReturnItem(
             string id,
             int amount
-        )
-        {
-        }
+        );
     }
 
-    public record EfficiencyCategory(
+    public sealed record EfficiencyCategory(
         EfficiencyMap efficiencyMap
     )
     {
-        public record EfficiencyMap(
+        public sealed record EfficiencyMap(
             float hand,
             float hoe,
             float axe,
@@ -109,8 +99,6 @@ public record ItemsCatalog(
             float pickaxe_5,
             float sword,
             float sheers
-        )
-        {
-        }
+        );
     }
 }

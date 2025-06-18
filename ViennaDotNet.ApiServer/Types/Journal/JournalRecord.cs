@@ -1,40 +1,36 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.ApiServer.Types.Common;
 using static ViennaDotNet.ApiServer.Types.Journal.JournalRecord;
 
 namespace ViennaDotNet.ApiServer.Types.Journal;
 
-public record JournalRecord(
+public sealed record JournalRecord(
      Dictionary<string, InventoryJournalEntry> inventoryJournal,
      ActivityLogEntry[] activityLog
 )
 {
-    public record InventoryJournalEntry(
+    public sealed record InventoryJournalEntry(
         string firstSeen,
         string lastSeen,
         int amountCollected
-    )
-    {
-    }
+    );
 
-    public record ActivityLogEntry(
+    public sealed record ActivityLogEntry(
         ActivityLogEntry.Type scenario,
         string eventTime,
         Rewards rewards,
         Dictionary<string, string> properties
     )
     {
-        [JsonConverter(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public enum Type
         {
-            [EnumMember(Value = "LevelUp")] LEVEL_UP,
-            [EnumMember(Value = "TappableCollected")] TAPPABLE,
-            [EnumMember(Value = "JournalContentCollected")] JOURNAL_ITEM_UNLOCKED,
-            [EnumMember(Value = "CraftingJobCompleted")] CRAFTING_COMPLETED,
-            [EnumMember(Value = "SmeltingJobCompleted")] SMELTING_COMPLETED,
-            [EnumMember(Value = "BoostActivated")] BOOST_ACTIVATED,
+            [JsonStringEnumMemberName("LevelUp")] LEVEL_UP,
+            [JsonStringEnumMemberName("TappableCollected")] TAPPABLE,
+            [JsonStringEnumMemberName("JournalContentCollected")] JOURNAL_ITEM_UNLOCKED,
+            [JsonStringEnumMemberName("CraftingJobCompleted")] CRAFTING_COMPLETED,
+            [JsonStringEnumMemberName("SmeltingJobCompleted")] SMELTING_COMPLETED,
+            [JsonStringEnumMemberName("BoostActivated")] BOOST_ACTIVATED,
         }
     }
 }

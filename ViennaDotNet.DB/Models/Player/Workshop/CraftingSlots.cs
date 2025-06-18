@@ -1,11 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.DB.Models.Player.Workshop;
 
-[JsonObject(MemberSerialization.OptIn)]
 public sealed class CraftingSlots
 {
-    [JsonProperty]
+    [JsonInclude]
     public readonly CraftingSlot[] slots;
 
     public CraftingSlots()

@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Serilog;
+﻿using Serilog;
+using System.Text.Json.Serialization;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.EventBus.Client;
 
@@ -84,7 +84,7 @@ public sealed class BuildplateInstancesManager
         }
 
         Log.Information("Did not find existing instance, starting new instance");
-        string? instanceId = await requestSender.request("buildplates", "start", JsonConvert.SerializeObject(new StartRequest(playerId, encounterId, buildplateId, night, type, shutdownTime))).Task;
+        string? instanceId = await requestSender.request("buildplates", "start", Json.Serialize(new StartRequest(playerId, encounterId, buildplateId, night, type, shutdownTime))).Task;
         if (instanceId == null)
         {
             Log.Error("Buildplate start request was rejected/ignored");
@@ -124,7 +124,7 @@ public sealed class BuildplateInstancesManager
     {
         Log.Information("Requesting buildplate preview");
 
-        string? preview = requestSender.request("buildplates", "preview", JsonConvert.SerializeObject(new PreviewRequest(Convert.ToBase64String(serverData), night))).Task.Result;
+        string? preview = requestSender.request("buildplates", "preview", Json.Serialize(new PreviewRequest(Convert.ToBase64String(serverData), night))).Task.Result;
         if (preview == null)
             Log.Error("Preview request was rejected/ignored");
 
@@ -140,7 +140,7 @@ public sealed class BuildplateInstancesManager
                     StartNotification startNotification;
                     try
                     {
-                        startNotification = JsonConvert.DeserializeObject<StartNotification>(@event.data)!;
+                        startNotification = Json.Deserialize<StartNotification>(@event.data)!;
                         if (startNotification.playerId == null && startNotification.type != InstanceType.ENCOUNTER)
                         {
                             Log.Warning("Bad start notification");
@@ -274,7 +274,7 @@ public sealed class BuildplateInstancesManager
         InstanceType type
     );
 
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum InstanceType
     {
         BUILD,

@@ -5,28 +5,32 @@ namespace ViennaDotNet.ApiServer.Utils;
 
 public class EarthApiResponse
 {
-    public object? result;
-    public Dictionary<string, int?>? updates = [];
+    public object? Result { get; }
+    public Dictionary<string, int?>? Updates { get; } = [];
 
     public EarthApiResponse(object _results)
     {
-        result = _results;
+        Result = _results;
     }
 
-    public EarthApiResponse(object? _results, Updates? _updates)
+    public EarthApiResponse(object? _results, UpdatesResponse? _updates)
     {
-        result = _results;
+        Result = _results;
         if (_updates is null)
-            updates = null;
+        {
+            Updates = null;
+        }
         else
-            updates.AddRange(_updates.map);
+        {
+            Updates.AddRange(_updates.map);
+        }
     }
 
-    public sealed class Updates
+    public sealed class UpdatesResponse
     {
         public Dictionary<string, int?> map = [];
 
-        public Updates(EarthDB.Results results)
+        public UpdatesResponse(EarthDB.Results results)
         {
             Dictionary<string, int?> updates = results.getUpdates();
             put(updates, "profile", "characterProfile");
@@ -48,30 +52,3 @@ public class EarthApiResponse
         }
     }
 }
-
-//public class EarthApiResponsePlus
-//{
-//    public object result;
-//    public object? expiration;
-//    public object? continuationToken;
-//    public Dictionary<string, int>? updates = new Dictionary<string, int>();
-
-//    public EarthApiResponsePlus(object _results)
-//    {
-//        result = _results;
-//    }
-
-//    public EarthApiResponsePlus(object _results, Updates? _updates)
-//    {
-//        result = _results;
-//        if (_updates is null)
-//            updates = null;
-//        else
-//            updates.AddRange(_updates.map);
-//    }
-
-//    public class Updates
-//    {
-//        public Dictionary<string, int> map = new Dictionary<string, int>();
-//    }
-//}

@@ -1,10 +1,10 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using Serilog;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -47,7 +47,7 @@ public class ProfileController : ControllerBase
             profile.health = maxPlayerHealth;
         }
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Profile.Profile(
+        string resp = Json.Serialize(new EarthApiResponse(new Types.Profile.Profile(
             Java.IntStream.Range(0, levels.Length).Collect(() => new Dictionary<int, Types.Profile.Profile.Level>(), (hashMap, levelIndex) =>
             {
                 Levels.Level level = levels[levelIndex];
@@ -78,7 +78,7 @@ public class ProfileController : ControllerBase
                 .ExecuteAsync(earthDB, cancellationToken))
                 .Get("profile").Value;
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(profile.rubies.purchased + profile.rubies.earned));
+            string resp = Json.Serialize(new EarthApiResponse(profile.rubies.purchased + profile.rubies.earned));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)
@@ -103,7 +103,7 @@ public class ProfileController : ControllerBase
                 .ExecuteAsync(earthDB, cancellationToken))
                 .Get("profile").Value;
 
-            string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Types.Profile.SplitRubies(profile.rubies.purchased, profile.rubies.earned)));
+            string resp = Json.Serialize(new EarthApiResponse(new Types.Profile.SplitRubies(profile.rubies.purchased, profile.rubies.earned)));
             return Content(resp, "application/json");
         }
         catch (EarthDB.DatabaseException ex)

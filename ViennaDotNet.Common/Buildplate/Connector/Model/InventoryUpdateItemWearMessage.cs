@@ -1,10 +1,8 @@
 ﻿namespace ViennaDotNet.Buildplate.Connector.Model;
 
-public record InventoryUpdateItemWearMessage(
+public sealed record InventoryUpdateItemWearMessage(
     string playerId,
     string itemId,
     string instanceId,
     int wear
-)
-{
-}
+);

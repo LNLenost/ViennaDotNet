@@ -2,11 +2,11 @@
 
 namespace ViennaDotNet.ApiServer.Types.Catalog;
 
-public record JournalCatalog(
+public sealed record JournalCatalog(
     Dictionary<string, Item> items
 )
 {
-    public record Item(
+    public sealed record Item(
         string referenceId,
         string parentCollection,
         int overallOrder,
@@ -14,7 +14,5 @@ public record JournalCatalog(
         string? defaultSound,
         bool deprecated,
         string toolsVersion
-    )
-    {
-    }
+    );
 }

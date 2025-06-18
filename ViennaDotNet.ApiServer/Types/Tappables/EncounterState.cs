@@ -1,18 +1,15 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Tappables;
-
 
 public sealed record EncounterState(
     EncounterState.ActiveEncounterState activeEncounterState
 )
 {
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum ActiveEncounterState
     {
-        [EnumMember(Value = "Pristine")] PRISTINE,
-        [EnumMember(Value = "Dirty")] DIRTY,
+        [JsonStringEnumMemberName("Pristine")] PRISTINE,
+        [JsonStringEnumMemberName("Dirty")] DIRTY,
     }
 }

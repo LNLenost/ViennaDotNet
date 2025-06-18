@@ -1,14 +1,12 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System.Runtime.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.ApiServer.Types.Workshop;
 
-[JsonConverter(typeof(StringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum State
 {
-    [EnumMember(Value = "Empty")] EMPTY,
-    [EnumMember(Value = "Active")] ACTIVE,
-    [EnumMember(Value = "Completed")] COMPLETED,
-    [EnumMember(Value = "Locked")] LOCKED
+    [JsonStringEnumMemberName("Empty")] EMPTY,
+    [JsonStringEnumMemberName("Active")] ACTIVE,
+    [JsonStringEnumMemberName("Completed")] COMPLETED,
+    [JsonStringEnumMemberName("Locked")] LOCKED
 }

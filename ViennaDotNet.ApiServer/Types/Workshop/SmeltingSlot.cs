@@ -20,22 +20,18 @@ public record SmeltingSlot(
     int streamVersion
 )
 {
-    public record Fuel(
+    public sealed record Fuel(
         BurnRate burnRate,
         string itemId,
         int quantity,
         string[] itemInstanceIds
-    )
-    {
-    }
+    );
 
-    public record Burning(
+    public sealed record Burning(
         string? burnStartTime,
         string? burnsUntil,
         string? remainingBurnTime,
         float? heatDepleted,
         Fuel fuel
-    )
-    {
-    }
+    );
 }

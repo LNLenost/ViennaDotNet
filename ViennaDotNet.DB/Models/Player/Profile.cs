@@ -1,10 +1,16 @@
-﻿namespace ViennaDotNet.DB.Models.Player;
+﻿using System.Text.Json.Serialization;
+
+namespace ViennaDotNet.DB.Models.Player;
 
 public sealed class Profile
 {
+    [JsonInclude]
     public int health;
+    [JsonInclude]
     public int experience;
+    [JsonInclude]
     public int level;
+    [JsonInclude]
     public Rubies rubies;
 
     public Profile()

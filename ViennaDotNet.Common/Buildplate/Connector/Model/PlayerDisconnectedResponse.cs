@@ -1,7 +1,5 @@
 ﻿namespace ViennaDotNet.Buildplate.Connector.Model;
 
-public record PlayerDisconnectedResponse(
+public sealed record PlayerDisconnectedResponse(
 // TODO
-)
-{
-}
+);

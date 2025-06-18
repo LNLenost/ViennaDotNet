@@ -20,7 +20,9 @@ public sealed class Rubies
     public bool spend(int amount)
     {
         if (amount > purchased + earned)
+        {
             return false;
+        }
 
         // TODO: in what order should purchased/earned rubies be spent?
         if (amount > purchased)
@@ -38,7 +40,9 @@ public sealed class Rubies
             earned -= amount;
 
         if (purchased < 0 || earned < 0)
+        {
             throw new InvalidOperationException();
+        }
 
         return true;
     }

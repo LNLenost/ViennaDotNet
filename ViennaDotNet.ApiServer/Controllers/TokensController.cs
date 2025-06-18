@@ -1,11 +1,11 @@
 ﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Utils;
+using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -33,7 +33,7 @@ public class TokensController : ControllerBase
             .ExecuteAsync(earthDB, cancellationToken))
             .Get("tokens").Value;
 
-        string resp = JsonConvert.SerializeObject(new EarthApiResponse(new Dictionary<string, Dictionary<string, Token>>()
+        string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, Dictionary<string, Token>>()
         {
             {
                 "tokens",
@@ -89,11 +89,13 @@ public class TokensController : ControllerBase
 
         if (token != null)
         {
-            string resp = JsonConvert.SerializeObject(tokenToApiResponse(token));
+            string resp = Json.Serialize(tokenToApiResponse(token));
             return Content(resp, "application/json");
         }
         else
+        {
             return BadRequest();
+        }
     }
 
     private static Token tokenToApiResponse(Tokens.Token token)

@@ -1,10 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace ViennaDotNet.DB.Models.Player;
 
 public sealed class Boosts
 {
-    [JsonProperty]
+    [JsonInclude]
     public readonly ActiveBoost?[] activeBoosts;
 
     public Boosts()
@@ -32,9 +32,9 @@ public sealed class Boosts
     }
 
     public sealed record ActiveBoost(
-        [property: JsonProperty] string instanceId,
-        [property: JsonProperty] string itemId,
-        [property: JsonProperty] long startTime,
-        [property: JsonProperty] long duration
+        [property: JsonInclude] string instanceId,
+        [property: JsonInclude] string itemId,
+        [property: JsonInclude] long startTime,
+        [property: JsonInclude] long duration
     );
 }
