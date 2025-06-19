@@ -12,7 +12,7 @@ namespace ViennaDotNet.Launcher;
 internal static class Program
 {
     public const string SettingsFile = "config.json";
-    public const string ProgramsDir = "files";
+    public const string ProgramsDir = ""; // same as launcher
     public const string StaticDataDir = "staticdata";
 
     public static LoggerConfiguration LoggerConfiguration => new LoggerConfiguration()

@@ -4,14 +4,16 @@ Param (
 )
 
 foreach ($profile in $profiles) {
+    $publishDir = "./build/$configuration/$profile"
+
 	Write-Host "Publishing $profile"
 	if ($profile -eq 'framework-dependent') {
-		dotnet publish ViennaDotNet.sln --no-self-contained -c $configuration /p:PublishSingleFile=false
+		dotnet publish ViennaDotNet.sln -o $publishDir --no-self-contained -c $configuration /p:PublishSingleFile=false
 	}
 	elseif ($profile -like 'framework-dependent-*') {
-		dotnet publish ViennaDotNet.sln --no-self-contained -c $configuration -r $profile.Substring('framework-dependent-'.Length) /p:PublishSingleFile=false
+		dotnet publish ViennaDotNet.sln -o $publishDir --no-self-contained -c $configuration -r $profile.Substring('framework-dependent-'.Length) /p:PublishSingleFile=false
 	}
 	else {
-		dotnet publish ViennaDotNet.sln --sc -c $configuration -r $profile
+		dotnet publish ViennaDotNet.sln -o $publishDir --sc -c $configuration -r $profile
 	}
 }
