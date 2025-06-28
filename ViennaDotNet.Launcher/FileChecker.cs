@@ -1,12 +1,6 @@
 ﻿using Serilog;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Net.Http;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using ViennaDotNet.Common;
 using ViennaDotNet.Launcher.Programs;
 
@@ -39,7 +33,7 @@ internal static class FileChecker
         "tappables",
         "tile_renderer",
     ];
-    
+
     static FileChecker()
     {
         bool added = httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", $"BitcoderCZ/ViennaDotNet/{Assembly.GetExecutingAssembly().GetName().Version}");

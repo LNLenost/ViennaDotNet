@@ -1,11 +1,8 @@
 ﻿using Serilog;
-using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using Terminal.Gui.App;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
-using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.Launcher.Programs;
 using ViennaDotNet.Launcher.Utils;

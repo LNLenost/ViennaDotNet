@@ -1,7 +1,6 @@
 ﻿using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting.Display;
-using System;
 using System.Text;
 
 namespace ViennaDotNet.Launcher.Utils;

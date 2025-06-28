@@ -1,5 +1,4 @@
-﻿using System.Text.Json.Serialization;
-using ViennaDotNet.Common.Utils;
+﻿using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.DB.Models.Player;
 

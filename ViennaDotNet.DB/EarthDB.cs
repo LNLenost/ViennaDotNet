@@ -4,7 +4,6 @@ using System.Text.Json;
 using ViennaDotNet.Common;
 using ViennaDotNet.Common.Excceptions;
 using ViennaDotNet.Common.Utils;
-using ViennaDotNet.DB.Models.Player;
 
 namespace ViennaDotNet.DB;
 
@@ -811,22 +810,22 @@ public sealed class EarthDB : IDisposable
     public sealed class DatabaseException : Exception
     {
         public DatabaseException()
-        { 
+        {
         }
 
-        public DatabaseException(string message) 
-            : base(message) 
-        { 
+        public DatabaseException(string message)
+            : base(message)
+        {
         }
 
-        public DatabaseException(string message, Exception innerException) 
-            : base(message, innerException) 
-        { 
+        public DatabaseException(string message, Exception innerException)
+            : base(message, innerException)
+        {
         }
 
-        public DatabaseException(Exception innerException) 
+        public DatabaseException(Exception innerException)
             : base("Database operation failed.", innerException)
-        { 
+        {
         }
     }
 }

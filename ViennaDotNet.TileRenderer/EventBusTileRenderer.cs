@@ -1,7 +1,6 @@
 ﻿using Npgsql;
 using Serilog;
 using SkiaSharp;
-using System.Text.Json;
 using ViennaDotNet.Common;
 using ViennaDotNet.EventBus.Client;
 

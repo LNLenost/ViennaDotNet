@@ -61,7 +61,7 @@ public class NbtMap// : IDictionary<string, object>
     public ICollection<object> Values()
         => _map.Values;
 
-    public bool Getbool(string key) 
+    public bool Getbool(string key)
         => Getbool(key, false);
 
     public bool Getbool(string key, bool defaultValue)

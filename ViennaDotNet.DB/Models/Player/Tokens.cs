@@ -1,8 +1,6 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB.Models.Common;
-using static ViennaDotNet.DB.Models.Player.ActivityLog;
 
 namespace ViennaDotNet.DB.Models.Player;
 

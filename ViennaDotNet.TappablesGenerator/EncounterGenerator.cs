@@ -74,7 +74,7 @@ public class EncounterGenerator
     {
         Debug.Assert(dest.Length >= 4);
 
-        dest[0]=YToLat((float)tileY / (1 << 16));
+        dest[0] = YToLat((float)tileY / (1 << 16));
         dest[1] = YToLat((float)(tileY + 1) / (1 << 16));
         dest[2] = XToLon((float)tileX / (1 << 16));
         dest[3] = XToLon((float)(tileX + 1) / (1 << 16));

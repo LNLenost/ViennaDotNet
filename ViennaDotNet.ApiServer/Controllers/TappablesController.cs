@@ -73,7 +73,7 @@ public class TappablesController : ControllerBase
                     null,
                     new ActiveLocation.EncounterMetadataR(
                         ActiveLocation.EncounterMetadataR.EncounterTypeE.SHORT_4X4_PEACEFUL,    // TODO
-                                                                                              //UUID.randomUUID().toString(),    // TODO: what is this field for and does it matter what we put here?
+                                                                                                //UUID.randomUUID().toString(),    // TODO: what is this field for and does it matter what we put here?
                         encounter.Id,
                         encounter.EncounterBuildplateId,
                         ActiveLocation.EncounterMetadataR.AnchorStateE.OFF,

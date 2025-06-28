@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using Terminal.Gui.App;
-using Terminal.Gui.Configuration;
 
 namespace ViennaDotNet.Launcher;
 

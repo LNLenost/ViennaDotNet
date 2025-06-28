@@ -1,13 +1,12 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Text.Json;
 using ViennaDotNet.Common;
 
 namespace ViennaDotNet.StaticData;
 
 public sealed class TappablesConfig
 {
-    public readonly ImmutableArray< TappableConfig> Tappables;
+    public readonly ImmutableArray<TappableConfig> Tappables;
 
     internal TappablesConfig(string dir)
     {

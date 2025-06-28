@@ -17,8 +17,8 @@ public sealed class EncounterBuildplates
 
     public sealed class EncounterBuildplate
     {
-        public int Size {get;}
-        public int Offset {get;}
+        public int Size { get; }
+        public int Offset { get; }
         public int Scale { get; }
 
         public string ServerDataObjectId { get; }

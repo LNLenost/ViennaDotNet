@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace ViennaDotNet.DB.Models.Player;
+﻿namespace ViennaDotNet.DB.Models.Player;
 
 public sealed class Boosts
 {

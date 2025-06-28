@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace ViennaDotNet.DB.Models.Player.Workshop;
+﻿namespace ViennaDotNet.DB.Models.Player.Workshop;
 
 public sealed class CraftingSlots
 {

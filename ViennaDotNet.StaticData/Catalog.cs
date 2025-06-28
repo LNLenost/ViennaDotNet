@@ -1,7 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using ViennaDotNet.Common;
 
@@ -383,7 +382,7 @@ public sealed class Catalog
 
     public sealed class RecipesCatalogR
     {
-        public readonly ImmutableArray< CraftingRecipe> Crafting;
+        public readonly ImmutableArray<CraftingRecipe> Crafting;
         public readonly ImmutableArray<SmeltingRecipe> Smelting;
 
         private readonly Dictionary<string, CraftingRecipe> craftingRecipesById = [];
@@ -404,7 +403,7 @@ public sealed class Catalog
 
             Debug.Assert(recipesCatalogFile is not null);
 
-            Crafting = ImmutableCollectionsMarshal.AsImmutableArray( recipesCatalogFile.Crafting);
+            Crafting = ImmutableCollectionsMarshal.AsImmutableArray(recipesCatalogFile.Crafting);
             Smelting = ImmutableCollectionsMarshal.AsImmutableArray(recipesCatalogFile.Smelting);
 
             HashSet<string> craftingIds = [];
