@@ -17,11 +17,11 @@ internal static class TileUtils
     {
         ulong dbPos = ToDbPos(tileX, tileY);
 
-        var results = await new EarthDB.TileQuery(false)
-            .Get(dbPos)
+        var results = await new EarthDB.ObjectQuery(false)
+            .GetTile(dbPos)
             .ExecuteAsync(db, cancellationToken);
 
-        string? tileObjectId = results.Get(dbPos);
+        string? tileObjectId = results.GetTile(dbPos);
 
         if (!string.IsNullOrEmpty(tileObjectId))
         {
@@ -50,8 +50,8 @@ internal static class TileUtils
 
         Log.Debug($"Stored tile ({tileX}, {tileY}) to object store under id {tileObjectId}");
 
-        _ = await new EarthDB.TileQuery(true)
-            .Update(dbPos, tileObjectId)
+        _ = await new EarthDB.ObjectQuery(true)
+            .UpdateTile(dbPos, tileObjectId)
             .ExecuteAsync(db, cancellationToken);
 
         await dest.WriteAsync(tilePng, cancellationToken);

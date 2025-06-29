@@ -27,33 +27,14 @@ public sealed class Buildplates
     public BuildplateEntry[] GetBuildplates()
         => [.. _buildplates.Select(entry => new BuildplateEntry(entry.Key, entry.Value))];
 
-    public sealed class Buildplate
-    {
-        public int Size { get; init; }
-
-        public int Offset { get; init; }
-
-        public int Scale { get; init; }
-
-        public bool Night { get; init; }
-
-        public long LastModified { get; set; }
-
-        public string ServerDataObjectId { get; set; }
-
-        public string PreviewObjectId { get; set; }
-
-        public Buildplate(int size, int offset, int scale, bool night, long lastModified, string serverDataObjectId, string previewObjectId)
-        {
-            Size = size;
-            Offset = offset;
-            Scale = scale;
-
-            Night = night;
-
-            LastModified = lastModified;
-            ServerDataObjectId = serverDataObjectId;
-            PreviewObjectId = previewObjectId;
-        }
-    }
+    public sealed record Buildplate(
+        string TemplateId,
+        int Size,
+        int Offset,
+        int Scale,
+        bool Night,
+        long LastModified,
+        string ServerDataObjectId,
+        string PreviewObjectId
+    );
 }

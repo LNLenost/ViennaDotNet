@@ -8,9 +8,11 @@ using System.Text.Json.Serialization;
 using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
+using ViennaDotNet.DB.Models.Global;
 using ViennaDotNet.DB.Models.Player;
 using ViennaDotNet.EventBus.Client;
 using ViennaDotNet.ObjectStore.Client;
+using static ViennaDotNet.DB.Models.Player.Buildplates;
 
 namespace ViennaDotNet.Buildplate_Importer;
 
@@ -50,7 +52,7 @@ internal static class Program
         {
             AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
             {
-                Log.Fatal($"Unhandeled exception: {e.ExceptionObject}");
+                Log.Fatal($"Unhandled exception: {e.ExceptionObject}");
                 Log.CloseAndFlush();
                 Environment.Exit(1);
             };
@@ -131,11 +133,22 @@ internal static class Program
             return;
         }
 
-        string buildplateId = U.RandomUuid().ToString();
+        string templateId = Path.GetFileNameWithoutExtension(options.WorldPath);
+        string playerBuildplateId = U.RandomUuid().ToString();
 
         string playerId = options.PlayerId.ToLowerInvariant();
 
-        if (!await StoreBuildplate(earthDB, eventBusClient, objectStoreClient, playerId, buildplateId, worldData, U.CurrentTimeMillis()))
+        byte[] preview = await GeneratePreview(eventBusClient, worldData);
+
+        if (!await StoreTemplate(templateId, earthDB, objectStoreClient, preview, worldData))
+        {
+            Log.Fatal("Could not add template buildplate");
+            Log.CloseAndFlush();
+            Environment.Exit(3);
+            return;
+        }
+
+        if (!await StoreBuildplate(earthDB, objectStoreClient, playerId, templateId, playerBuildplateId, worldData, preview, U.CurrentTimeMillis()))
         {
             Log.Fatal("Could not add buildplate");
             Log.CloseAndFlush();
@@ -143,7 +156,7 @@ internal static class Program
             return;
         }
 
-        Log.Information($"Added buildplate with ID {buildplateId} for player {playerId}");
+        Log.Information($"Added buildplate with ID {playerBuildplateId} for player {playerId}");
         Environment.Exit(0);
         return;
     }
@@ -324,7 +337,7 @@ internal static class Program
         bool night
     );
 
-    private static async Task<bool> StoreBuildplate(EarthDB earthDB, EventBusClient? eventBusClient, ObjectStoreClient objectStoreClient, string playerId, string buildplateId, WorldData worldData, long timestamp)
+    private static async Task<byte[]> GeneratePreview(EventBusClient? eventBusClient, WorldData worldData)
     {
         string? preview;
         if (eventBusClient is not null)
@@ -345,6 +358,123 @@ internal static class Program
             preview = null;
         }
 
+        return preview is not null ? Encoding.ASCII.GetBytes(preview) : [];
+    }
+
+    private static async Task<bool> StoreTemplate(string templateId, EarthDB earthDB, ObjectStoreClient objectStoreClient, byte[] preview, WorldData worldData, CancellationToken cancellationToken = default)
+    {
+        TemplateBuildplate? template;
+        try
+        {
+            var results = await new EarthDB.ObjectQuery(true)
+               .GetBuildplate(templateId)
+               .ExecuteAsync(earthDB, cancellationToken);
+
+            template = results.GetBuildplate(templateId);
+        }
+        catch (EarthDB.DatabaseException ex)
+        {
+            Log.Error($"Failed to get template buildplate: {ex}");
+            return false;
+        }
+
+        if (template is not null)
+        {
+            Log.Information("Template buildplate found, updating");
+
+            Log.Information("Storing template world");
+            string? serverDataObjectId = (string?)await objectStoreClient.Store(worldData.ServerData).Task;
+            if (serverDataObjectId is null)
+            {
+                Log.Error("Could not store template data object in object store");
+                return false;
+            }
+
+            Log.Information("Storing template preview");
+            string? previewObjectId = (string?)await objectStoreClient.Store(preview).Task;
+            if (previewObjectId is null)
+            {
+                Log.Error("Could not store template preview object in object store");
+                return false;
+            }
+
+            Log.Information("Updating template object ids");
+            string oldDataObjectId = template.ServerDataObjectId;
+            string oldPreviewObjectId = template.PreviewObjectId;
+
+            template = template with
+            {
+                ServerDataObjectId = serverDataObjectId,
+                PreviewObjectId = previewObjectId
+            };
+
+            try
+            {
+                var results = await new EarthDB.ObjectQuery(true)
+                   .UpdateBuildplate(templateId, template)
+                   .ExecuteAsync(earthDB, cancellationToken);
+            }
+            catch (EarthDB.DatabaseException ex)
+            {
+                Log.Error($"Failed to update template buildplate: {ex}");
+                return false;
+            }
+
+            Log.Information("Deleting old template objects");
+            await objectStoreClient.Delete(oldDataObjectId).Task;
+            await objectStoreClient.Delete(oldPreviewObjectId).Task;
+        }
+        else
+        {
+
+            Log.Information("Template buildplate not found");
+
+            Log.Information("Storing template world");
+            string? serverDataObjectId = (string?)await objectStoreClient.Store(worldData.ServerData).Task;
+            if (serverDataObjectId is null)
+            {
+                Log.Error("Could not store template data object in object store");
+                return false;
+            }
+
+            Log.Information("Storing template preview");
+            string? previewObjectId = (string?)await objectStoreClient.Store(preview).Task;
+            if (previewObjectId is null)
+            {
+                Log.Error("Could not store template preview object in object store");
+                return false;
+            }
+
+            int scale = worldData.Size switch
+            {
+                8 => 14,
+                16 => 33,
+                32 => 64,
+                _ => 33,
+            };
+
+            template = new TemplateBuildplate(worldData.Size, worldData.Offset, scale, worldData.Night, serverDataObjectId, previewObjectId);
+
+            try
+            {
+                var results = await new EarthDB.ObjectQuery(true)
+                   .UpdateBuildplate(templateId, template)
+                   .ExecuteAsync(earthDB, cancellationToken);
+            }
+            catch (EarthDB.DatabaseException ex)
+            {
+                Log.Error($"Failed to store template buidplate in database: {ex}");
+                await objectStoreClient.Delete(serverDataObjectId).Task;
+                await objectStoreClient.Delete(previewObjectId).Task;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static async Task<bool> StoreBuildplate(EarthDB earthDB, ObjectStoreClient objectStoreClient, string playerId, string templateId, string buildplateId, WorldData worldData, byte[] preview, long timestamp)
+    {
         Log.Information("Storing world");
         string? serverDataObjectId = (string?)await objectStoreClient.Store(worldData.ServerData).Task;
         if (serverDataObjectId is null)
@@ -354,7 +484,7 @@ internal static class Program
         }
 
         Log.Information("Storing preview");
-        string? previewObjectId = (string?)await objectStoreClient.Store(preview is not null ? Encoding.ASCII.GetBytes(preview) : []).Task;
+        string? previewObjectId = (string?)await objectStoreClient.Store(preview).Task;
         if (previewObjectId is null)
         {
             Log.Error("Could not store preview object in object store");
@@ -377,7 +507,7 @@ internal static class Program
                         _ => 33,
                     };
 
-                    Buildplates.Buildplate buildplate = new Buildplates.Buildplate(worldData.Size, worldData.Offset, scale, worldData.Night, timestamp, serverDataObjectId, previewObjectId);
+                    Buildplates.Buildplate buildplate = new Buildplates.Buildplate(templateId, worldData.Size, worldData.Offset, scale, worldData.Night, timestamp, serverDataObjectId, previewObjectId);
 
                     buildplates.AddBuildplate(buildplateId, buildplate);
 
@@ -390,8 +520,8 @@ internal static class Program
         catch (EarthDB.DatabaseException ex)
         {
             Log.Error($"Failed to store buildplate in database: {ex}");
-            objectStoreClient.Delete(serverDataObjectId);
-            objectStoreClient.Delete(previewObjectId);
+            await objectStoreClient.Delete(serverDataObjectId).Task;
+            await objectStoreClient.Delete(previewObjectId).Task;
             return false;
         }
     }

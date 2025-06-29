@@ -9,6 +9,10 @@ namespace ViennaDotNet.DB;
 
 public sealed class EarthDB : IDisposable
 {
+    private const string ObjectsTable = "objects";
+    private const string TilesTable = "tiles";
+    private const string BuildplatesTable = "objects";
+
     private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -36,21 +40,30 @@ public sealed class EarthDB : IDisposable
         {
             using var connection = new SqliteConnection("Data Source=" + connectionString);
             connection.Open();
-            using (var command = new SqliteCommand("CREATE TABLE IF NOT EXISTS objects (type STRING NOT NULL, id STRING NOT NULL, value STRING NOT NULL, version INTEGER NOT NULL, PRIMARY KEY (type, id))", connection) { CommandTimeout = TRANSACTION_TIMEOUT })
+            using (var command = new SqliteCommand($"CREATE TABLE IF NOT EXISTS {ObjectsTable} (type STRING NOT NULL, id STRING NOT NULL, value STRING NOT NULL, version INTEGER NOT NULL, PRIMARY KEY (type, id))", connection) { CommandTimeout = TRANSACTION_TIMEOUT })
             {
                 command.ExecuteNonQuery();
             }
 
-            using (var command = new SqliteCommand("""
-                CREATE TABLE IF NOT EXISTS tiles (
-                    pos INTEGER PRIMARY KEY,
-                    objectId TEXT NOT NULL
+            using (var command = new SqliteCommand($"""
+                CREATE TABLE IF NOT EXISTS {TilesTable} (
+                    id INTEGER PRIMARY KEY,
+                    value TEXT NOT NULL
                 );
                 """, connection) { CommandTimeout = TRANSACTION_TIMEOUT })
             {
                 command.ExecuteNonQuery();
             }
 
+            using (var command = new SqliteCommand($"""
+                CREATE TABLE IF NOT EXISTS {BuildplatesTable} (
+                    id TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                """, connection) { CommandTimeout = TRANSACTION_TIMEOUT })
+            {
+                command.ExecuteNonQuery();
+            }
         }
         catch (SqliteException ex)
         {
@@ -224,7 +237,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "INSERT OR REPLACE INTO objects(type, id, value, version) VALUES ($type, $id, $value, COALESCE((SELECT version FROM objects WHERE type == $type AND id == $id), 1) + 1)";
+                    command.CommandText = $"INSERT OR REPLACE INTO {ObjectsTable}(type, id, value, version) VALUES ($type, $id, $value, COALESCE((SELECT version FROM {ObjectsTable} WHERE type == $type AND id == $id), 1) + 1)";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -235,7 +248,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT version FROM objects WHERE type == $type AND id == $id";
+                    command.CommandText = $"SELECT version FROM {ObjectsTable} WHERE type == $type AND id == $id";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -260,7 +273,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT version FROM objects WHERE type == $type AND id == $id";
+                    command.CommandText = $"SELECT version FROM {ObjectsTable} WHERE type == $type AND id == $id";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -283,7 +296,7 @@ public sealed class EarthDB : IDisposable
                     using (var command = transaction.Connection!.CreateCommand())
                     {
                         command.CommandTimeout = TRANSACTION_TIMEOUT;
-                        command.CommandText = "UPDATE objects SET version = $version WHERE type == $type AND id == $id";
+                        command.CommandText = $"UPDATE {ObjectsTable} SET version = $version WHERE type == $type AND id == $id";
 
                         command.Parameters.AddWithValue("$version", version + 1);
                         command.Parameters.AddWithValue("$type", entry.type);
@@ -301,7 +314,7 @@ public sealed class EarthDB : IDisposable
                     using (var command = transaction.Connection!.CreateCommand())
                     {
                         command.CommandTimeout = TRANSACTION_TIMEOUT;
-                        command.CommandText = "INSERT INTO objects(type, id, value, version) VALUES ($type, $id, $json, 2)";
+                        command.CommandText = $"INSERT INTO {ObjectsTable}(type, id, value, version) VALUES ($type, $id, $json, 2)";
 
                         command.Parameters.AddWithValue("$type", entry.type);
                         command.Parameters.AddWithValue("$id", entry.id);
@@ -320,7 +333,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT value, version FROM objects WHERE type == $type AND id == $id";
+                    command.CommandText = $"SELECT value, version FROM {ObjectsTable} WHERE type == $type AND id == $id";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -372,7 +385,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "INSERT OR REPLACE INTO objects(type, id, value, version) VALUES ($type, $id, $value, COALESCE((SELECT version FROM objects WHERE type == $type AND id == $id), 1) + 1)";
+                    command.CommandText = $"INSERT OR REPLACE INTO {ObjectsTable}(type, id, value, version) VALUES ($type, $id, $value, COALESCE((SELECT version FROM {ObjectsTable} WHERE type == $type AND id == $id), 1) + 1)";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -383,7 +396,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT version FROM objects WHERE type == $type AND id == $id";
+                    command.CommandText = $"SELECT version FROM {ObjectsTable} WHERE type == $type AND id == $id";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -406,7 +419,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT version FROM objects WHERE type == $type AND id == $id";
+                    command.CommandText = $"SELECT version FROM {ObjectsTable} WHERE type == $type AND id == $id";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -429,7 +442,7 @@ public sealed class EarthDB : IDisposable
                     using (var command = transaction.Connection!.CreateCommand())
                     {
                         command.CommandTimeout = TRANSACTION_TIMEOUT;
-                        command.CommandText = "UPDATE objects SET version = $version WHERE type == $type AND id == $id";
+                        command.CommandText = $"UPDATE {ObjectsTable} SET version = $version WHERE type == $type AND id == $id";
 
                         command.Parameters.AddWithValue("$version", version + 1);
                         command.Parameters.AddWithValue("$type", entry.type);
@@ -447,7 +460,7 @@ public sealed class EarthDB : IDisposable
                     using (var command = transaction.Connection!.CreateCommand())
                     {
                         command.CommandTimeout = TRANSACTION_TIMEOUT;
-                        command.CommandText = "INSERT INTO objects(type, id, value, version) VALUES ($type, $id, $json, 2)";
+                        command.CommandText = $"INSERT INTO {ObjectsTable}(type, id, value, version) VALUES ($type, $id, $json, 2)";
 
                         command.Parameters.AddWithValue("$type", entry.type);
                         command.Parameters.AddWithValue("$id", entry.id);
@@ -466,7 +479,7 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT value, version FROM objects WHERE type == $type AND id == $id";
+                    command.CommandText = $"SELECT value, version FROM {ObjectsTable} WHERE type == $type AND id == $id";
 
                     command.Parameters.AddWithValue("$type", entry.type);
                     command.Parameters.AddWithValue("$id", entry.id);
@@ -505,7 +518,7 @@ public sealed class EarthDB : IDisposable
         }
     }
 
-    public class TileQuery
+    public class ObjectQuery
     {
         private readonly bool _write;
         private readonly List<WriteObjectsEntry> writeObjects = [];
@@ -513,65 +526,102 @@ public sealed class EarthDB : IDisposable
         private readonly List<ExtrasEntry> extras = [];
         private readonly List<ThenFunctionEntry> thenFunctions = [];
 
-        private sealed record WriteObjectsEntry(ulong Pos, string ObjectId);
+        private sealed record WriteObjectsEntry(string Table, object Id, string Value);
 
-        private sealed record ReadObjectsEntry(ulong Pos);
+        private sealed record ReadObjectsEntry(string Table, object Id);
 
         private sealed record ExtrasEntry(string name, object value);
 
-        private sealed record ThenFunctionEntry(Func<TileResults, TileQuery> function, bool replaceResults);
+        private sealed record ThenFunctionEntry(Func<ObjectResults, ObjectQuery> function, bool replaceResults);
 
-        public TileQuery(bool write)
+        public ObjectQuery(bool write)
         {
             _write = write;
         }
 
         #region methods
-        public TileQuery Update(ulong pos, string objectId)
+        public ObjectQuery UpdateTile(ulong pos, string objectId)
         {
             if (!_write)
             {
                 throw new UnsupportedOperationException();
             }
 
-            writeObjects.Add(new WriteObjectsEntry(pos, objectId));
+            writeObjects.Add(new WriteObjectsEntry(TilesTable, pos, objectId));
             return this;
         }
 
-        public TileQuery Get(ulong pos)
+        public ObjectQuery UpdateBuildplate(string name, Models.Global.TemplateBuildplate buildplate)
         {
-            readObjects.Add(new ReadObjectsEntry(pos));
+            if (!_write)
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            writeObjects.Add(new WriteObjectsEntry(BuildplatesTable, name, ToJson(buildplate)));
             return this;
         }
 
-        public TileQuery Extra(string name, object value)
+        public ObjectQuery GetTile(ulong pos)
+        {
+            readObjects.Add(new ReadObjectsEntry(TilesTable, pos));
+            return this;
+        }
+
+        public ObjectQuery GetTiles(IEnumerable<ulong> positions)
+        {
+            foreach (ulong pos in positions)
+            {
+                GetTile(pos);
+            }
+
+            return this;
+        }
+
+        public ObjectQuery GetBuildplate(string id)
+        {
+            readObjects.Add(new ReadObjectsEntry(BuildplatesTable, id));
+            return this;
+        }
+
+        public ObjectQuery GetBuildplates(IEnumerable<string> ids)
+        {
+            foreach (string name in ids)
+            {
+                GetBuildplate(name);
+            }
+
+            return this;
+        }
+
+        public ObjectQuery Extra(string name, object value)
         {
             extras.Add(new ExtrasEntry(name, value));
             return this;
         }
 
-        public TileQuery Then(Func<TileResults, TileQuery> function, bool replaceResults)
+        public ObjectQuery Then(Func<ObjectResults, ObjectQuery> function, bool replaceResults)
         {
             thenFunctions.Add(new ThenFunctionEntry(function, replaceResults));
             return this;
         }
 
-        public TileQuery Then(Func<TileResults, TileQuery> function)
+        public ObjectQuery Then(Func<ObjectResults, ObjectQuery> function)
             => Then(function, true);
 
-        public TileQuery Then(TileQuery query, bool replaceResults)
+        public ObjectQuery Then(ObjectQuery query, bool replaceResults)
             => Then(results => query, replaceResults);
 
-        public TileQuery Then(TileQuery query)
+        public ObjectQuery Then(ObjectQuery query)
             => Then(query, true);
         #endregion
 
-        public async Task<TileResults> ExecuteAsync(EarthDB earthDB, CancellationToken cancellationToken = default)
+        public async Task<ObjectResults> ExecuteAsync(EarthDB earthDB, CancellationToken cancellationToken = default)
         {
             try
             {
                 using SqliteTransaction transaction = earthDB.CreateTransaction(_write);
-                TileResults results = await ExecuteInternalAsync(transaction, _write, cancellationToken);
+                ObjectResults results = await ExecuteInternalAsync(transaction, _write, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 if (transaction.Connection is not null)
                 {
@@ -586,12 +636,12 @@ public sealed class EarthDB : IDisposable
             }
         }
 
-        public TileResults Execute(EarthDB earthDB)
+        public ObjectResults Execute(EarthDB earthDB)
         {
             try
             {
                 using SqliteTransaction transaction = earthDB.CreateTransaction(_write);
-                TileResults results = ExecuteInternal(transaction, _write);
+                ObjectResults results = ExecuteInternal(transaction, _write);
                 transaction.Commit();
                 transaction.Connection?.Close();
 
@@ -603,24 +653,24 @@ public sealed class EarthDB : IDisposable
             }
         }
 
-        private async Task<TileResults> ExecuteInternalAsync(SqliteTransaction transaction, bool write, CancellationToken cancellationToken)
+        private async Task<ObjectResults> ExecuteInternalAsync(SqliteTransaction transaction, bool write, CancellationToken cancellationToken)
         {
             if (_write && !write)
             {
                 throw new UnsupportedOperationException();
             }
 
-            TileResults results = new TileResults();
+            ObjectResults results = new ObjectResults();
 
             foreach (WriteObjectsEntry entry in writeObjects)
             {
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "INSERT OR REPLACE INTO tiles(pos, objectId) VALUES ($pos, $objectId)";
+                    command.CommandText = $"INSERT OR REPLACE INTO {entry.Table}(id, value) VALUES ($id, $value)";
 
-                    command.Parameters.AddWithValue("$pos", entry.Pos);
-                    command.Parameters.AddWithValue("$objectId", entry.ObjectId);
+                    command.Parameters.AddWithValue("$id", entry.Id);
+                    command.Parameters.AddWithValue("$value", entry.Value);
                     await command.ExecuteNonQueryAsync(cancellationToken);
                 }
             }
@@ -630,19 +680,19 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT objectId FROM tiles WHERE pos == $pos";
+                    command.CommandText = $"SELECT value FROM {entry.Table} WHERE id == $id";
 
-                    command.Parameters.AddWithValue("$pos", entry.Pos);
+                    command.Parameters.AddWithValue("$id", entry.Id);
                     using (var reader = await command.ExecuteReaderAsync(cancellationToken))
                     {
                         if (await reader.ReadAsync(cancellationToken))
                         {
-                            string objectId = reader.GetString(0);
-                            results.getValues[entry.Pos] = objectId;
+                            string value = reader.GetString(0);
+                            results.getValues[(entry.Table, entry.Id)] = value;
                         }
                         else
                         {
-                            results.getValues[entry.Pos] = null;
+                            results.getValues[(entry.Table, entry.Id)] = null;
                         }
                     }
                 }
@@ -655,8 +705,8 @@ public sealed class EarthDB : IDisposable
 
             foreach (var entry in thenFunctions)
             {
-                TileQuery query = entry.function(results);
-                TileResults innerResults = await query.ExecuteInternalAsync(transaction, write, cancellationToken);
+                ObjectQuery query = entry.function(results);
+                ObjectResults innerResults = await query.ExecuteInternalAsync(transaction, write, cancellationToken);
                 if (entry.replaceResults)
                 {
                     results = innerResults;
@@ -666,24 +716,24 @@ public sealed class EarthDB : IDisposable
             return results;
         }
 
-        private TileResults ExecuteInternal(SqliteTransaction transaction, bool write)
+        private ObjectResults ExecuteInternal(SqliteTransaction transaction, bool write)
         {
             if (_write && !write)
             {
                 throw new UnsupportedOperationException();
             }
 
-            TileResults results = new TileResults();
+            ObjectResults results = new ObjectResults();
 
             foreach (WriteObjectsEntry entry in writeObjects)
             {
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "INSERT OR REPLACE INTO tiles(pos, objectId) VALUES ($pos, $objectId)";
+                    command.CommandText = $"INSERT OR REPLACE INTO {entry.Table}(id, value) VALUES ($id, $value)";
 
-                    command.Parameters.AddWithValue("$pos", entry.Pos);
-                    command.Parameters.AddWithValue("$objectId", entry.ObjectId);
+                    command.Parameters.AddWithValue("$id", entry.Id);
+                    command.Parameters.AddWithValue("$value", entry.Value);
                     command.ExecuteNonQuery();
                 }
             }
@@ -693,19 +743,19 @@ public sealed class EarthDB : IDisposable
                 using (var command = transaction.Connection!.CreateCommand())
                 {
                     command.CommandTimeout = TRANSACTION_TIMEOUT;
-                    command.CommandText = "SELECT objectId FROM tiles WHERE pos == $pos";
+                    command.CommandText = $"SELECT value FROM {entry.Table} WHERE id == $id";
 
-                    command.Parameters.AddWithValue("$pos", entry.Pos);
+                    command.Parameters.AddWithValue("$id", entry.Id);
                     using (var reader = command.ExecuteReader())
                     {
                         if (reader.Read())
                         {
-                            string objectId = reader.GetString(0);
-                            results.getValues[entry.Pos] = objectId;
+                            string value = reader.GetString(0);
+                            results.getValues[(entry.Table, entry.Id)] = value;
                         }
                         else
                         {
-                            results.getValues[entry.Pos] = null;
+                            results.getValues[(entry.Table, entry.Id)] = null;
                         }
                     }
                 }
@@ -718,8 +768,8 @@ public sealed class EarthDB : IDisposable
 
             foreach (var entry in thenFunctions)
             {
-                TileQuery query = entry.function(results);
-                TileResults innerResults = query.ExecuteInternal(transaction, write);
+                ObjectQuery query = entry.function(results);
+                ObjectResults innerResults = query.ExecuteInternal(transaction, write);
                 if (entry.replaceResults)
                 {
                     results = innerResults;
@@ -733,8 +783,14 @@ public sealed class EarthDB : IDisposable
     private static object? FromJson(string json, Type valueType)
         => Json.Deserialize(json, valueType, jsonOptions);
 
+    private static T? FromJson<T>(string json)
+        => Json.Deserialize<T>(json, jsonOptions);
+
     private static string ToJson(object value)
-        => Json.Serialize(value);
+        => Json.Serialize(value, jsonOptions);
+
+    private static string ToJson<T>(T value)
+        => Json.Serialize(value, jsonOptions);
 
     private static object CreateNewInstance(Type valueType)
     {
@@ -786,20 +842,25 @@ public sealed class EarthDB : IDisposable
             : Result(GValue!, version);
     }
 
-    public class TileResults
+    public class ObjectResults
     {
-        public Dictionary<ulong, string?> getValues = [];
+        public Dictionary<(string, object), string?> getValues = [];
         public Dictionary<string, object> extras = [];
 
-        public TileResults()
+        public ObjectResults()
         {
             // empty
         }
 
-        public string? Get(ulong pos)
-            => !getValues.TryGetValue(pos, out string? objectId)
-            ? throw new KeyNotFoundException($"Pos '{pos}' was not found.")
+        public string? GetTile(ulong pos)
+            => !getValues.TryGetValue((TilesTable, pos), out string? objectId)
+            ? null
             : objectId;
+
+        public Models.Global.TemplateBuildplate? GetBuildplate(string id)
+            => !getValues.TryGetValue((BuildplatesTable, id), out string? buildplateJson)
+            ? null
+            : buildplateJson is null ? null : FromJson<Models.Global.TemplateBuildplate>(buildplateJson);
 
         public object GetExtra(string name)
             => !extras.TryGetValue(name, out object? value) || value is null

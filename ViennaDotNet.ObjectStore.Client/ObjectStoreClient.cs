@@ -494,7 +494,8 @@ public class ObjectStoreClient
         {
             STORE,
             GET,
-            DELETE
+            DELETE,
+            UPDATE,
         }
 
         public Command(TypeE type, object data, TaskCompletionSource<object?> completableFuture)

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.ApiServer.Utils;
 using ViennaDotNet.Common;
+using ViennaDotNet.Common.Utils;
 using ViennaDotNet.StaticData;
 using static ViennaDotNet.StaticData.Catalog.ShopCatalogR;
 using CICIBIEType = ViennaDotNet.StaticData.Catalog.ItemsCatalogR.Item.BoostInfoR.Effect.TypeE;
@@ -43,8 +44,10 @@ public class CatalogController : ControllerBase
     public IActionResult GetNFCBoostsCatalog()
         => Content(Json.Serialize(new EarthApiResponse(MakeNFCBoostsCatalogApiResponse(catalog))), "application/json");
 
+    private sealed record StoreItemInfoRequest(Guid Id, string StoreItemType);
+
     [Route("commerce/storeItemInfo")]
-    public async Task<IActionResult> GetStoreItemInfo()
+    public async Task<IActionResult> GetStoreItemInfo(CancellationToken cancellationToken)
     {
         // TODO
 
