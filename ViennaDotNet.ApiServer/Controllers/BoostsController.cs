@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Utils;
-using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -18,7 +17,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Authorize]
 [ApiVersion("1.1")]
 [Route("1/api/v{version:apiVersion}")]
-public class BoostsController : ControllerBase
+public class BoostsController : ViennaControllerBase
 {
     private static EarthDB earthDB => Program.DB;
     private static Catalog catalog => Program.staticData.Catalog;
@@ -163,8 +162,7 @@ public class BoostsController : ControllerBase
             activeBoostsWithInfo.Count != 0 ? TimeFormatter.FormatTime(activeBoostsWithInfo.Values.Select(activeBoostInfo => activeBoostInfo.ActiveBoost.StartTime + activeBoostInfo.ActiveBoost.Duration).Min()) : null
         );
 
-        string resp = Json.Serialize(new EarthApiResponse(boostsResponse, new EarthApiResponse.UpdatesResponse(results)));
-        return Content(resp, "application/json");
+        return EarthJson(boostsResponse, new EarthApiResponse.UpdatesResponse(results));
     }
 
     [HttpPost("boosts/potions/{itemId}/activate")]
@@ -269,8 +267,7 @@ public class BoostsController : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = Json.Serialize(new EarthApiResponse(null, new EarthApiResponse.UpdatesResponse(results)));
-            return Content(resp, "application/json");
+            return EarthJson(null, new EarthApiResponse.UpdatesResponse(results));
         }
         catch (EarthDB.DatabaseException exception)
         {
@@ -348,8 +345,7 @@ public class BoostsController : ControllerBase
                 })
                 .ExecuteAsync(earthDB, cancellationToken);
 
-            string resp = Json.Serialize(new EarthApiResponse(null, new EarthApiResponse.UpdatesResponse(results)));
-            return Content(resp, "application/json");
+            return EarthJson(null, new EarthApiResponse.UpdatesResponse(results));
         }
         catch (EarthDB.DatabaseException exception)
         {

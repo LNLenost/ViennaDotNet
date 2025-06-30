@@ -6,7 +6,6 @@ using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Types.Tappables;
 using ViennaDotNet.ApiServer.Utils;
-using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -17,7 +16,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Authorize]
 [ApiVersion("1.1")]
 [Route("1/api/v{version:apiVersion}")]
-public class TappablesController : ControllerBase
+public class TappablesController : ViennaControllerBase
 {
     private static TappablesManager tappablesManager => Program.tappablesManager;
     private static EarthDB earthDB => Program.DB;
@@ -84,12 +83,11 @@ public class TappablesController : ControllerBase
 
             ActiveLocation[] activeLocations = [.. activeLocationTappables, .. activeLocationEncounters];
 
-            string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object>()
+            return EarthJson(new Dictionary<string, object>()
             {
                 { "killSwitchedTileIds", new List<object>() },
                 { "activeLocations", activeLocations }
-            }));
-            return Content(resp, "application/json");
+            });
         }
         catch (EarthDB.DatabaseException ex)
         {
@@ -186,7 +184,7 @@ public class TappablesController : ControllerBase
 
             if ((bool)results.GetExtra("success"))
             {
-                string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, object?>()
+                return EarthJson(new Dictionary<string, object?>()
                 {
                     { "token", new Token(
                         Token.Type.TAPPABLE,
@@ -195,11 +193,12 @@ public class TappablesController : ControllerBase
                         Token.LifetimeE.PERSISTENT
                     ) },
                     { "updates", null }
-                }, new EarthApiResponse.UpdatesResponse(results)));
-                return Content(resp, "application/json");
+                }, new EarthApiResponse.UpdatesResponse(results));
             }
             else
+            {
                 return BadRequest();
+            }
         }
         catch (EarthDB.DatabaseException ex)
         {
@@ -233,8 +232,7 @@ public class TappablesController : ControllerBase
             encounterStates[encounterId] = new EncounterState(EncounterState.ActiveEncounterStateE.PRISTINE);
         }
 
-        string resp = Json.Serialize(new EarthApiResponse(encounterStates));
-        return Content(resp, "application/json");
+        return EarthJson(encounterStates);
     }
 
     private sealed record TappableRequest(

@@ -2,14 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System.Text.RegularExpressions;
-using ViennaDotNet.ApiServer.Utils;
-using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 
 namespace ViennaDotNet.ApiServer.Controllers;
 
 [ApiVersion("1.1")]
-public partial class SigninController : ControllerBase
+public partial class SigninController : ViennaControllerBase
 {
     [GeneratedRegex("^[0-9A-F]{16}$")]
     private static partial Regex GetUserIdRegex();
@@ -43,7 +41,7 @@ public partial class SigninController : ControllerBase
         // TODO: generate secure session token
         string token = userId.ToUpperInvariant();
 
-        string str = Json.Serialize(new EarthApiResponse(new Dictionary<string, object?>()
+        return EarthJson(new Dictionary<string, object?>()
         {
             ["authenticationToken"] = token,
             ["basePath"] = "/1",
@@ -53,9 +51,7 @@ public partial class SigninController : ControllerBase
             ["streams"] = null,
             ["tokens"] = new object(),
             ["updates"] = new object(),
-        }));
-
-        return Content(str, "application/json");
+        });
     }
 
     private sealed record SigninRequest(string SessionTicket);

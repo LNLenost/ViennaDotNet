@@ -5,7 +5,6 @@ using System.Security.Claims;
 using ViennaDotNet.ApiServer.Exceptions;
 using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Utils;
-using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Player;
@@ -16,7 +15,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Authorize]
 [ApiVersion("1.1")]
 [Route("1/api/v{version:apiVersion}/player/tokens")]
-public class TokensController : ControllerBase
+public class TokensController : ViennaControllerBase
 {
     private static EarthDB earthDB => Program.DB;
     private static StaticData.StaticData staticData => Program.staticData;
@@ -33,7 +32,7 @@ public class TokensController : ControllerBase
             .ExecuteAsync(earthDB, cancellationToken))
             .Get<Tokens>("tokens");
 
-        string resp = Json.Serialize(new EarthApiResponse(new Dictionary<string, Dictionary<string, Token>>()
+        return EarthJson(new Dictionary<string, Dictionary<string, Token>>()
         {
             {
                 "tokens",
@@ -42,8 +41,7 @@ public class TokensController : ControllerBase
                     hashmap[token.Id] = TokenToApiResponse(token.Token);
                 }, DictionaryExtensions.AddRange)
             }
-        }, null));
-        return Content(resp, "application/json");
+        }, null);
     }
 
     [HttpPost("{tokenId}/redeem")]
@@ -89,8 +87,7 @@ public class TokensController : ControllerBase
 
         if (token is not null)
         {
-            string resp = Json.Serialize(TokenToApiResponse(token));
-            return Content(resp, "application/json");
+            return EarthJson(TokenToApiResponse(token));
         }
         else
         {

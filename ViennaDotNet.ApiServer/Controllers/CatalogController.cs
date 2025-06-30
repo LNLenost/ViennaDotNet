@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using ViennaDotNet.ApiServer.Types.Catalog;
 using ViennaDotNet.ApiServer.Utils;
-using ViennaDotNet.Common;
 using ViennaDotNet.StaticData;
 using CICIBIEType = ViennaDotNet.StaticData.Catalog.ItemsCatalogR.Item.BoostInfoR.Effect.TypeE;
 using CICIBIType = ViennaDotNet.StaticData.Catalog.ItemsCatalogR.Item.BoostInfoR.TypeE;
@@ -22,25 +21,25 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Authorize]
 [ApiVersion("1.1")]
 [Route("1/api/v{version:apiVersion}")]
-public class CatalogController : ControllerBase
+public class CatalogController : ViennaControllerBase
 {
     private static Catalog catalog => Program.staticData.Catalog;
 
     [HttpGet("inventory/catalogv3")]
     public IActionResult GetItemsCatalog()
-        => Content(Json.Serialize(new EarthApiResponse(MakeItemsCatalogApiResponse(catalog))), "application/json");
+        => EarthJson(MakeItemsCatalogApiResponse(catalog));
 
     [HttpGet("recipes")]
     public IActionResult GetRecipeCatalog()
-        => Content(Json.Serialize(new EarthApiResponse(MakeRecipesCatalogApiResponse(catalog))), "application/json");
+        => EarthJson(MakeRecipesCatalogApiResponse(catalog));
 
     [HttpGet("journal/catalog")]
     public IActionResult GetJournalCatalog()
-        => Content(Json.Serialize(new EarthApiResponse(MakeJournalCatalogApiResponse(catalog))), "application/json");
+        => EarthJson(MakeJournalCatalogApiResponse(catalog));
 
     [HttpGet("products/catalog")]
     public IActionResult GetNFCBoostsCatalog()
-        => Content(Json.Serialize(new EarthApiResponse(MakeNFCBoostsCatalogApiResponse(catalog))), "application/json");
+        => EarthJson(MakeNFCBoostsCatalogApiResponse(catalog));
 
     // TODO: cache these?
     private static ItemsCatalog MakeItemsCatalogApiResponse(Catalog catalog)

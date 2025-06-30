@@ -11,7 +11,6 @@ using ViennaDotNet.ApiServer.Types.Buildplates;
 using ViennaDotNet.ApiServer.Types.Common;
 using ViennaDotNet.ApiServer.Types.Inventory;
 using ViennaDotNet.ApiServer.Utils;
-using ViennaDotNet.Common;
 using ViennaDotNet.Common.Utils;
 using ViennaDotNet.DB;
 using ViennaDotNet.DB.Models.Global;
@@ -25,7 +24,7 @@ namespace ViennaDotNet.ApiServer.Controllers;
 [Authorize]
 [ApiVersion("1.1")]
 [Route("1/api/v{version:apiVersion}")]
-public class BuildplatesController : ControllerBase
+public class BuildplatesController : ViennaControllerBase
 {
     private static EarthDB earthDB => Program.DB;
     private static ObjectStoreClient objectStoreClient => Program.objectStore;
@@ -83,8 +82,7 @@ public class BuildplatesController : ControllerBase
         }).Where(ownedBuildplate => ownedBuildplate is not null)
         .Select(task => task.Result)];
 
-        string resp = Json.Serialize(new EarthApiResponse(ownedBuildplates));
-        return Content(resp, "application/json");
+        return EarthJson(ownedBuildplates);
     }
 
     [HttpPost("multiplayer/buildplate/{buildplateId}/instances")]
@@ -212,8 +210,7 @@ public class BuildplatesController : ControllerBase
             throw new ServerErrorException(exception);
         }
 
-        string resp = Json.Serialize(new EarthApiResponse($"minecraftearth://sharedbuildplate?id={sharedBuildplateId}"));
-        return Content(resp, "application/json");
+        return EarthJson($"minecraftearth://sharedbuildplate?id={sharedBuildplateId}");
     }
 
     [HttpGet("buildplates/shared/{sharedBuildplateId}")]
@@ -258,7 +255,7 @@ public class BuildplatesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        string resp = Json.Serialize(new EarthApiResponse(new SharedBuildplate(
+        return EarthJson(new SharedBuildplate(
             sharedBuildplate.PlayerId,    // TODO: supposed to return username here, not player ID
             TimeFormatter.FormatTime(sharedBuildplate.Created),
             new SharedBuildplate.BuildplateDataR(
@@ -302,8 +299,7 @@ public class BuildplatesController : ControllerBase
                         new NonStackableInventoryItem.OnR(TimeFormatter.FormatTime(0))
                     ))]
             )
-        )));
-        return Content(resp, "application/json");
+        ));
     }
 
     [HttpPost("multiplayer/buildplate/shared/{sharedBuildplateId}/play/instances")]
@@ -401,8 +397,7 @@ public class BuildplatesController : ControllerBase
             return NotFound();
         }
 
-        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
-        return Content(resp, "application/json");
+        return EarthJson(buildplateInstance);
     }
 
     private async Task<IActionResult> GetNewBuildplateInstanceResponse(string playerId, string buildplateId, BuildplateInstancesManager.InstanceType type, CancellationToken cancellationToken)
@@ -446,8 +441,7 @@ public class BuildplatesController : ControllerBase
             return NotFound();
         }
 
-        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
-        return Content(resp, "application/json");
+        return EarthJson(buildplateInstance);
     }
 
     private async Task<IActionResult> GetNewSharedBuildplateInstanceResponse(string playerId, string sharedBuildplateId, BuildplateInstancesManager.InstanceType type, CancellationToken cancellationToken)
@@ -488,8 +482,7 @@ public class BuildplatesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
-        return Content(resp, "application/json");
+        return EarthJson(buildplateInstance);
     }
 
     private async Task<IActionResult> GetNewEncounterBuildplateInstanceResponse(string encounterId, string tileId, TappablesManager tappablesManager, CancellationToken cancellationToken)
@@ -519,8 +512,7 @@ public class BuildplatesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        string resp = Json.Serialize(new EarthApiResponse(buildplateInstance));
-        return Content(resp, "application/json");
+        return EarthJson(buildplateInstance);
     }
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -642,7 +634,7 @@ public class BuildplatesController : ControllerBase
             instanceInfo.Ready,
             instanceInfo.Ready ? BuildplateInstance.ApplicationStatusE.READY : BuildplateInstance.ApplicationStatusE.UNKNOWN,
             instanceInfo.Ready ? BuildplateInstance.ServerStatusE.RUNNING : BuildplateInstance.ServerStatusE.RUNNING,
-            Json.Serialize(new Dictionary<string, object>()
+            Common.Json.Serialize(new Dictionary<string, object>()
             {
                 { "buildplateid", instanceInfo.BuildplateId }
             }),
